@@ -1,0 +1,8 @@
+[server]
+enableCORS = true
+enableXsrfProtection = true
+xsrfCookieSameSite = "lax"
+
+[browser]
+gatherUsageStats = false
+

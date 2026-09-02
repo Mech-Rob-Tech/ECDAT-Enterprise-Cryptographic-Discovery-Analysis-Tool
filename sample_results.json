@@ -1,0 +1,91 @@
+{
+  "target": "demo_repo",
+  "total_files_scanned": 18,
+  "total_artifacts": 7,
+  "risk_summary": {
+    "critical": 1,
+    "high": 3,
+    "medium": 1,
+    "low": 2
+  },
+  "artifacts": [
+    {
+      "algorithm": "RSA",
+      "type": "Asymmetric",
+      "key_size": 2048,
+      "mode": null,
+      "file": "security/key_manager.py",
+      "line": 42,
+      "evidence": "rsa.generate_private_key(public_exponent=65537, key_size=2048)",
+      "quantum_risk": "HIGH",
+      "risk_reason": "RSA is vulnerable to sufficiently capable quantum attacks.",
+      "mosca_risk": "HIGH",
+      "recommendation": "Evaluate migration to ML-KEM or an appropriate hybrid mechanism for key establishment, or ML-DSA / an appropriate hybrid mechanism for signatures depending on cryptographic purpose."
+    },
+    {
+      "algorithm": "ECDSA",
+      "type": "Asymmetric",
+      "key_size": 256,
+      "mode": null,
+      "file": "security/signatures.py",
+      "line": 31,
+      "evidence": "ec.generate_private_key(ec.SECP256R1())",
+      "quantum_risk": "HIGH",
+      "risk_reason": "Elliptic-curve public-key cryptography is vulnerable to sufficiently capable quantum attacks.",
+      "mosca_risk": "MEDIUM",
+      "recommendation": "Evaluate migration to ML-DSA or an appropriate hybrid digital-signature scheme."
+    },
+    {
+      "algorithm": "AES",
+      "type": "Symmetric",
+      "key_size": 256,
+      "mode": "GCM",
+      "file": "storage/encryption.py",
+      "line": 19,
+      "evidence": "AESGCM(key)",
+      "quantum_risk": "LOW",
+      "risk_reason": "AES-256 is not affected by Shor's algorithm and retains substantial security against known quantum search advantages.",
+      "mosca_risk": "LOW",
+      "recommendation": "No urgent PQC replacement required; continue monitoring standards and implementation security."
+    },
+    {
+      "algorithm": "SHA-256",
+      "type": "Hash",
+      "key_size": null,
+      "mode": null,
+      "file": "auth/passwords.py",
+      "line": 28,
+      "evidence": "hashlib.sha256(data).digest()",
+      "quantum_risk": "LOW",
+      "risk_reason": "Quantum search provides less dramatic impact on hash functions than on RSA/ECC.",
+      "mosca_risk": "LOW",
+      "recommendation": "No immediate PQC migration required."
+    },
+    {
+      "algorithm": "MD5",
+      "type": "Hash",
+      "key_size": null,
+      "mode": null,
+      "file": "legacy/checksum.py",
+      "line": 11,
+      "evidence": "hashlib.md5(data).hexdigest()",
+      "quantum_risk": "CRITICAL",
+      "risk_reason": "MD5 is already cryptographically broken independently of quantum-computing threats.",
+      "mosca_risk": "CRITICAL",
+      "recommendation": "Replace immediately with an approved modern hash algorithm appropriate to the use case."
+    },
+    {
+      "algorithm": "TLS",
+      "type": "Protocol",
+      "key_size": null,
+      "mode": null,
+      "file": "network/tls_config.py",
+      "line": 15,
+      "evidence": "ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)",
+      "quantum_risk": "MEDIUM",
+      "risk_reason": "TLS risk depends on the key-exchange and authentication algorithms configured within the protocol.",
+      "mosca_risk": "MEDIUM",
+      "recommendation": "Inspect negotiated cipher suites and plan migration toward approved PQC or hybrid TLS mechanisms."
+    }
+  ]
+}
