@@ -1,64 +1,95 @@
 from scanner.crypto_scanner import scan_repository
+from model.canonical import build_canonical_scan
+from model.validation import validate_canonical_scan
 
 
-results = scan_repository("demo_repo")
+def main():
+    target = "demo_repo"
 
+    scan_results = scan_repository(target)
 
-print()
-print(f"Target                 : {results['target']}")
-print(f"Files scanned          : {results['total_files_scanned']}")
-print(f"Cryptographic artefacts: {results['total_artifacts']}")
+    canonical = build_canonical_scan(
+        scan_results
+    )
 
-print()
-print("Risk Summary")
-print("-" * 30)
-
-for level, count in results["risk_summary"].items():
-    print(f"{level.upper():10}: {count}")
-
-print()
-
-
-for finding in results["artifacts"]:
-
-    print("=" * 70)
+    print("===== PHASE 2D GRAPH VALIDATION =====")
 
     print(
-        f"Algorithm      : {finding['algorithm']}"
+        f"Applications       : "
+        f"{len(canonical.applications)}"
     )
 
     print(
-        f"Type           : {finding['type']}"
+        f"Components         : "
+        f"{len(canonical.components)}"
     )
 
     print(
-        f"File           : {finding['file']}"
+        f"Artifacts          : "
+        f"{len(canonical.artifacts)}"
     )
 
     print(
-        f"Line           : {finding['line']}"
+        f"Evidence           : "
+        f"{len(canonical.evidence)}"
     )
 
     print(
-        f"Evidence       : {finding['evidence']}"
+        f"Relationships      : "
+        f"{len(canonical.relationships)}"
     )
 
-    if finding["details"]:
+    print(
+        f"Risk assessments   : "
+        f"{len(canonical.risk_assessments)}"
+    )
+
+    print(
+        f"MOSCA assessments  : "
+        f"{len(canonical.mosca_assessments)}"
+    )
+
+    print(
+        f"Recommendations    : "
+        f"{len(canonical.recommendations)}"
+    )
+
+    print(
+        f"Migration options  : "
+        f"{len(canonical.migration_options)}"
+    )
+
+    print(
+        f"Verification states: "
+        f"{len(canonical.verification)}"
+    )
+
+    errors = validate_canonical_scan(
+        canonical
+    )
+
+    print()
+    print("===== VALIDATION =====")
+
+    if errors:
         print(
-            f"Details        : {finding['details']}"
+            f"FAIL: {len(errors)} validation error(s)"
         )
 
-    print(
-        f"Quantum Risk   : {finding['quantum_risk']}"
-    )
+        for index, error in enumerate(
+            errors,
+            start=1,
+        ):
+            print(
+                f"{index:02d}. {error}"
+            )
+
+        raise SystemExit(1)
 
     print(
-        f"Risk Reason    : {finding['risk_reason']}"
-    )
-
-    print(
-        f"Recommendation : {finding['recommendation']}"
+        "PASS: Canonical graph is structurally valid."
     )
 
 
-print("=" * 70)
+if __name__ == "__main__":
+    main()

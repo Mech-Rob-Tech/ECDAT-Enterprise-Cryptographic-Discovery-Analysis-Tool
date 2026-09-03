@@ -6,8 +6,10 @@ const pageNames: Record<string, string> = {
   "/overview": "Overview",
   "/inventory": "Inventory",
   "/artifacts": "Artifacts",
+  "/analysis": "Analysis Tools",
+  "/topology": "Cryptographic Topology",
   "/quantum": "Quantum Risk",
-  "/mosca": "Mosca Analysis",
+  "/mosca": "MOSCA Analysis",
   "/migration": "Migration",
   "/reports": "Reports",
   "/import": "Import Scan",
@@ -27,7 +29,9 @@ export function Topbar() {
           {pageName}
         </span>
 
-        <span className="text-[#566276]">/</span>
+        <span className="text-[#566276]">
+          /
+        </span>
 
         <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground">
           ECDAT

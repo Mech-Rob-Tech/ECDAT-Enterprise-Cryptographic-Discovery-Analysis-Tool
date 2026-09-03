@@ -1,0 +1,175 @@
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+
+@dataclass
+class ScanMetadata:
+    target: str
+    generated_at: str
+    prototype_scope: str
+
+
+@dataclass
+class ScanSummary:
+    total_files_scanned: int
+    total_artifacts: int
+    security_risk_summary: Dict[str, int]
+    quantum_relevant_assets: int
+
+
+@dataclass
+class Application:
+    application_id: str
+    name: str
+    path: str
+
+
+@dataclass
+class Component:
+    component_id: str
+    name: str
+    component_type: str
+    version: Optional[str] = None
+    path: Optional[str] = None
+
+
+@dataclass
+class Algorithm:
+    name: str
+    family: Optional[str] = None
+
+
+@dataclass
+class Purpose:
+    value: str
+    confidence: str
+
+
+@dataclass
+class Detection:
+    method: str
+    confidence: str
+
+
+@dataclass
+class Evidence:
+    evidence_id: str
+    file: str
+    line: int
+    text: str
+    context: List[Dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
+class RiskAssessment:
+    assessment_id: str
+    level: str
+    reason: str
+
+
+@dataclass
+class QuantumRisk:
+    level: str
+    reason: str
+
+
+@dataclass
+class Risk:
+    security: Optional[RiskAssessment] = None
+    quantum: Optional[QuantumRisk] = None
+
+
+@dataclass
+class MoscaAssessment:
+    assessment_id: str
+    risk: str
+    status: str
+    explanation: str
+
+
+@dataclass
+class Recommendation:
+    recommendation_id: str
+    category: str
+    priority: str
+    text: str
+    rationale: str
+
+
+@dataclass
+class MigrationOption:
+    option_id: str
+    name: str
+    rationale: str
+    compatibility: str
+    effort: str
+
+
+@dataclass
+class VerificationState:
+    verification_id: str
+    status: str
+    verified_at: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@dataclass
+class Relationship:
+    relationship_id: str
+    source_id: str
+    target_id: str
+    relationship_type: str
+    confidence: str = "high"
+    evidence_ids: List[str] = field(default_factory=list)
+
+
+@dataclass
+class CryptoArtifact:
+    artifact_id: str
+    algorithm: Algorithm
+    artifact_type: str
+
+    key_size: Optional[int] = None
+    mode: Optional[str] = None
+    curve: Optional[str] = None
+    version: Optional[str] = None
+
+    purpose: Optional[Purpose] = None
+    detection: Optional[Detection] = None
+
+    evidence_ids: List[str] = field(default_factory=list)
+
+    risk: Optional[Risk] = None
+    mosca: Optional[MoscaAssessment] = None
+
+    recommendation_ids: List[str] = field(default_factory=list)
+    migration_option_ids: List[str] = field(default_factory=list)
+
+    verification_id: Optional[str] = None
+
+    application_id: Optional[str] = None
+    component_id: Optional[str] = None
+
+    details: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ECDATScan:
+    metadata: ScanMetadata
+    summary: ScanSummary
+
+    applications: List[Application] = field(default_factory=list)
+    components: List[Component] = field(default_factory=list)
+
+    artifacts: List[CryptoArtifact] = field(default_factory=list)
+    evidence: List[Evidence] = field(default_factory=list)
+
+    relationships: List[Relationship] = field(default_factory=list)
+
+    risk_assessments: List[RiskAssessment] = field(default_factory=list)
+    mosca_assessments: List[MoscaAssessment] = field(default_factory=list)
+
+    recommendations: List[Recommendation] = field(default_factory=list)
+    migration_options: List[MigrationOption] = field(default_factory=list)
+
+    verification: List[VerificationState] = field(default_factory=list)

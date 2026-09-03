@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type BusinessCriticality = "Low" | "Medium" | "High" | "Critical";
@@ -96,9 +97,9 @@ export default function MoscaPage() {
     const stored = sessionStorage.getItem("ecdat_scan_result");
 
     if (!stored) {
-    router.replace("/import");
-    return;
-  }
+      router.replace("/import");
+      return;
+    }
 
     try {
       const data: ScanResult = JSON.parse(stored);
@@ -107,7 +108,9 @@ export default function MoscaPage() {
 
       const inputs = data.mosca_inputs;
 
-      if (!inputs) return;
+      if (!inputs) {
+        return;
+      }
 
       if (typeof inputs.data_lifetime === "number") {
         setDataLifetime(inputs.data_lifetime);
@@ -147,10 +150,67 @@ export default function MoscaPage() {
       {/* HEADER */}
 
       <header className="mb-9">
-        <div className="flex items-start justify-between gap-8">
+        {/* Back to Analysis */}
+        <Link
+          href="/analysis"
+          aria-label="Back to Analysis"
+          className="
+            group
+            inline-flex
+            h-9
+            items-center
+            gap-2
+            rounded-lg
+            px-2.5
+            font-mono
+            text-[10px]
+            font-bold
+            uppercase
+            tracking-[0.12em]
+            text-white/65
+            transition-all
+            duration-150
+            ease-out
+            hover:bg-white/[0.08]
+            hover:text-white
+            active:scale-[0.97]
+            active:duration-100
+            focus-visible:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-[#f4c430]/60
+            focus-visible:ring-offset-2
+            focus-visible:ring-offset-[#0d141f]
+          "
+        >
+          <span
+            aria-hidden="true"
+            className="
+              flex
+              h-5
+              w-5
+              items-center
+              justify-center
+              text-[15px]
+              font-bold
+              leading-none
+              text-white/50
+              transition-all
+              duration-150
+              ease-out
+              group-hover:-translate-x-0.5
+              group-hover:text-[#f4c430]
+            "
+          >
+            ←
+          </span>
+
+          <span>Back to Analysis</span>
+        </Link>
+
+        <div className="mt-5 flex items-start justify-between gap-8">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--primary)]">
-              Assess / Mosca Analysis
+              Assess / MOSCA Analysis
             </p>
 
             <h1 className="mt-3 text-3xl font-semibold tracking-tight">
@@ -184,7 +244,7 @@ export default function MoscaPage() {
         <div className="rounded-lg border border-[var(--border)] bg-[var(--card)]">
           <div className="border-b border-[var(--border)] px-6 py-5">
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
-              Mosca model
+              MOSCA model
             </p>
 
             <h2 className="mt-2 text-lg font-medium">
@@ -351,7 +411,7 @@ export default function MoscaPage() {
 
           <div className="mt-10 border-y border-current/10 py-7">
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] opacity-60">
-              Mosca calculation
+              MOSCA calculation
             </p>
 
             <div className="mt-5 flex items-center gap-3 font-mono text-lg">
@@ -365,17 +425,13 @@ export default function MoscaPage() {
             </div>
 
             <div className="mt-4 font-mono text-sm">
-              <span>
-                {total}
-              </span>
+              <span>{total}</span>
 
               <span className="mx-2 opacity-50">
                 {total > quantumHorizon ? ">" : "≤"}
               </span>
 
-              <span>
-                {quantumHorizon}
-              </span>
+              <span>{quantumHorizon}</span>
             </div>
           </div>
 

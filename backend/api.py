@@ -8,20 +8,20 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    SimpleDocTemplate,
     Paragraph,
+    SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
 )
-from reportlab.lib import colors
 
 from scanner.crypto_scanner import scan_repository
-from analysis.report_builder import build_dashboard_report
+from analysis.report_builder import build_report
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -53,7 +53,6 @@ async def health(request: Request):
 async def scan(request: Request):
     try:
         body = await request.json()
-
     except Exception:
         return JSONResponse(
             {
@@ -72,12 +71,19 @@ async def scan(request: Request):
             status_code=400,
         )
 
-    repository_path = Path(repository).expanduser().resolve()
+    repository_path = (
+        Path(repository)
+        .expanduser()
+        .resolve()
+    )
 
     if not repository_path.exists():
         return JSONResponse(
             {
-                "error": f"Repository does not exist: {repository_path}"
+                "error": (
+                    "Repository does not exist: "
+                    f"{repository_path}"
+                )
             },
             status_code=404,
         )
@@ -85,7 +91,10 @@ async def scan(request: Request):
     if not repository_path.is_dir():
         return JSONResponse(
             {
-                "error": "Repository path must be a directory."
+                "error": (
+                    "Repository path must be "
+                    "a directory."
+                )
             },
             status_code=400,
         )
@@ -97,12 +106,14 @@ async def scan(request: Request):
 
         mosca_inputs = build_mosca_inputs()
 
-        report = build_dashboard_report(
+        report = build_report(
             scan_results,
             mosca_inputs,
         )
 
-        return JSONResponse(report)
+        return JSONResponse(
+            report
+        )
 
     except Exception as exc:
         return JSONResponse(
@@ -120,7 +131,11 @@ async def export_json(request: Request):
 
         if not body:
             return JSONResponse(
-                {"error": "Scan result is required."},
+                {
+                    "error": (
+                        "Scan result is required."
+                    )
+                },
                 status_code=400,
             )
 
@@ -135,7 +150,8 @@ async def export_json(request: Request):
             media_type="application/json",
             headers={
                 "Content-Disposition": (
-                    'attachment; filename="ecdat-assessment.json"'
+                    'attachment; '
+                    'filename="ecdat-assessment.json"'
                 )
             },
         )
@@ -148,6 +164,48 @@ async def export_json(request: Request):
             },
             status_code=500,
         )
+
+
+def get_risk_summary(report):
+    """
+    Use the canonical security-risk summary first.
+
+    Fall back to the legacy summary so older imported
+    reports remain exportable.
+    """
+    canonical_summary = (
+        report.get("summary", {})
+        .get("security_risk_summary")
+    )
+
+    if canonical_summary:
+        return canonical_summary
+
+    return report.get(
+        "risk_summary",
+        {},
+    )
+
+
+def get_report_value(
+    report,
+    key,
+    default=0,
+):
+    value = report.get(key)
+
+    if value is not None:
+        return value
+
+    metadata = report.get(
+        "metadata",
+        {},
+    )
+
+    if key in metadata:
+        return metadata[key]
+
+    return default
 
 
 def build_pdf(report):
@@ -170,6 +228,56 @@ def build_pdf(report):
 
     story = []
 
+    target = (
+        report.get("target")
+        or report.get("metadata", {}).get(
+            "target",
+            "Unknown",
+        )
+    )
+
+    generated_at = (
+        report.get("generated_at")
+        or report.get("metadata", {}).get(
+            "generated_at",
+            "Current scan",
+        )
+    )
+
+    prototype_scope = (
+        report.get("prototype_scope")
+        or report.get("metadata", {}).get(
+            "prototype_scope",
+            "Source-code cryptographic discovery",
+        )
+    )
+
+    total_artifacts = (
+        report.get("total_artifacts")
+        or report.get("summary", {}).get(
+            "total_artifacts",
+            0,
+        )
+    )
+
+    total_files = (
+        report.get("total_files_scanned")
+        or report.get("summary", {}).get(
+            "total_files_scanned",
+            0,
+        )
+    )
+
+    quantum_vulnerable = report.get(
+        "quantum_vulnerable_assets",
+        report.get(
+            "summary", {}
+        ).get(
+            "quantum_relevant_assets",
+            0,
+        ),
+    )
+
     story.append(
         Paragraph(
             "ECDAT — Security Assessment Report",
@@ -183,23 +291,21 @@ def build_pdf(report):
 
     story.append(
         Paragraph(
-            f"<b>Target:</b> {report.get('target', 'Unknown')}",
+            f"<b>Target:</b> {target}",
             body_style,
         )
     )
 
     story.append(
         Paragraph(
-            f"<b>Generated:</b> "
-            f"{report.get('generated_at', 'Current scan')}",
+            f"<b>Generated:</b> {generated_at}",
             body_style,
         )
     )
 
     story.append(
         Paragraph(
-            f"<b>Scope:</b> "
-            f"{report.get('prototype_scope', 'Source-code cryptographic discovery')}",
+            f"<b>Scope:</b> {prototype_scope}",
             body_style,
         )
     )
@@ -217,14 +323,17 @@ def build_pdf(report):
 
     story.append(
         Paragraph(
-            f"The scan identified "
-            f"<b>{report.get('total_artifacts', 0)}</b> "
-            f"cryptographic artifacts across "
-            f"<b>{report.get('total_files_scanned', 0)}</b> "
-            f"source files. "
-            f"<b>{report.get('quantum_vulnerable_assets', 0)}</b> "
-            f"assets are classified as quantum-vulnerable "
-            f"by the current analysis engine.",
+            (
+                "The scan identified "
+                f"<b>{total_artifacts}</b> "
+                "cryptographic artifacts across "
+                f"<b>{total_files}</b> "
+                "source files. "
+                f"<b>{quantum_vulnerable}</b> "
+                "assets are classified as "
+                "quantum-vulnerable by the current "
+                "analysis engine."
+            ),
             body_style,
         )
     )
@@ -240,22 +349,45 @@ def build_pdf(report):
         )
     )
 
-    risk = report.get(
-        "risk_summary",
-        {},
+    risk = get_risk_summary(
+        report
     )
+
+    def risk_value(level):
+        return risk.get(
+            level,
+            risk.get(
+                level.lower(),
+                0,
+            ),
+        )
 
     risk_data = [
         ["Risk Level", "Findings"],
-        ["Critical", str(risk.get("critical", 0))],
-        ["High", str(risk.get("high", 0))],
-        ["Medium", str(risk.get("medium", 0))],
-        ["Low", str(risk.get("low", 0))],
+        [
+            "Critical",
+            str(risk_value("CRITICAL")),
+        ],
+        [
+            "High",
+            str(risk_value("HIGH")),
+        ],
+        [
+            "Medium",
+            str(risk_value("MEDIUM")),
+        ],
+        [
+            "Low",
+            str(risk_value("LOW")),
+        ],
     ]
 
     risk_table = Table(
         risk_data,
-        colWidths=[80 * mm, 40 * mm],
+        colWidths=[
+            80 * mm,
+            40 * mm,
+        ],
     )
 
     risk_table.setStyle(
@@ -265,7 +397,9 @@ def build_pdf(report):
                     "BACKGROUND",
                     (0, 0),
                     (-1, 0),
-                    colors.HexColor("#0E1522"),
+                    colors.HexColor(
+                        "#0E1522"
+                    ),
                 ),
                 (
                     "TEXTCOLOR",
@@ -296,7 +430,9 @@ def build_pdf(report):
         )
     )
 
-    story.append(risk_table)
+    story.append(
+        risk_table
+    )
 
     story.append(
         Spacer(1, 14)
@@ -309,21 +445,23 @@ def build_pdf(report):
 
     story.append(
         Paragraph(
-            "MOSCA Assessment",
+            "MOSCA Assessment Inputs",
             heading_style,
         )
     )
 
     story.append(
         Paragraph(
-            f"Data lifetime: "
-            f"<b>{mosca.get('data_lifetime', 0)} years</b><br/>"
-            f"Migration time: "
-            f"<b>{mosca.get('migration_time', 0)} years</b><br/>"
-            f"Quantum horizon: "
-            f"<b>{mosca.get('quantum_horizon', 0)} years</b><br/>"
-            f"Business criticality: "
-            f"<b>{mosca.get('business_criticality', 'Unknown')}</b>",
+            (
+                f"Data lifetime: "
+                f"<b>{mosca.get('data_lifetime', 0)} years</b><br/>"
+                f"Migration time: "
+                f"<b>{mosca.get('migration_time', 0)} years</b><br/>"
+                f"Quantum horizon: "
+                f"<b>{mosca.get('quantum_horizon', 0)} years</b><br/>"
+                f"Business criticality: "
+                f"<b>{mosca.get('business_criticality', 'Unknown')}</b>"
+            ),
             body_style,
         )
     )
@@ -342,104 +480,160 @@ def build_pdf(report):
     artifact_data = [
         [
             "Algorithm",
-            "Type",
             "Risk",
-            "Location",
+            "Purpose",
+            "File",
+            "Line",
         ]
     ]
 
-    for artifact in report.get(
+    artifacts = report.get(
         "artifacts",
         [],
-    ):
-        location = (
-            f"{artifact.get('file', '')}:"
-            f"{artifact.get('line', '')}"
+    )
+
+    if not artifacts:
+        artifacts = report.get(
+            "canonical_artifacts",
+            [],
         )
+
+    for artifact in artifacts:
+        risk_value_for_artifact = artifact.get(
+            "quantum_risk"
+        )
+
+        if not risk_value_for_artifact:
+            artifact_risk = artifact.get(
+                "risk",
+                {},
+            )
+
+            security_risk = artifact_risk.get(
+                "security",
+                {},
+            )
+
+            risk_value_for_artifact = (
+                security_risk.get(
+                    "level",
+                    "",
+                )
+            )
+
+        purpose = artifact.get(
+            "purpose",
+            "unknown",
+        )
+
+        file_name = artifact.get(
+            "file",
+            "",
+        )
+
+        line = artifact.get(
+            "line",
+            "",
+        )
+
+        if not file_name:
+            details = artifact.get(
+                "details",
+                {},
+            )
+
+            file_name = details.get(
+                "file",
+                "",
+            )
+
+        if not line:
+            details = artifact.get(
+                "details",
+                {},
+            )
+
+            line = details.get(
+                "line",
+                "",
+            )
 
         artifact_data.append(
             [
-                artifact.get("algorithm", ""),
-                artifact.get("type", ""),
-                artifact.get("quantum_risk", ""),
-                location,
-            ]
-        )
-
-    artifact_table = Table(
-        artifact_data,
-        repeatRows=1,
-        colWidths=[
-            30 * mm,
-            30 * mm,
-            25 * mm,
-            75 * mm,
-        ],
-    )
-
-    artifact_table.setStyle(
-        TableStyle(
-            [
-                (
-                    "BACKGROUND",
-                    (0, 0),
-                    (-1, 0),
-                    colors.HexColor("#0E1522"),
+                str(
+                    artifact.get(
+                        "algorithm",
+                        "",
+                    )
                 ),
-                (
-                    "TEXTCOLOR",
-                    (0, 0),
-                    (-1, 0),
-                    colors.white,
+                str(
+                    risk_value_for_artifact
                 ),
-                (
-                    "GRID",
-                    (0, 0),
-                    (-1, -1),
-                    0.4,
-                    colors.grey,
+                str(
+                    purpose
                 ),
-                (
-                    "FONTSIZE",
-                    (0, 0),
-                    (-1, -1),
-                    7,
+                str(
+                    file_name
                 ),
-                (
-                    "VALIGN",
-                    (0, 0),
-                    (-1, -1),
-                    "TOP",
+                str(
+                    line
                 ),
             ]
         )
-    )
 
-    story.append(artifact_table)
-
-    story.append(
-        Spacer(1, 14)
-    )
-
-    story.append(
-        Paragraph(
-            "Assessment Scope",
-            heading_style,
+    if len(artifact_data) > 1:
+        artifact_table = Table(
+            artifact_data,
+            repeatRows=1,
         )
-    )
 
-    story.append(
-        Paragraph(
-            f"{report.get('prototype_scope', 'Source-code cryptographic discovery')}. "
-            "This report reflects the findings returned by the "
-            "current ECDAT analysis pipeline and should not be "
-            "interpreted as a complete enterprise-wide "
-            "cryptographic inventory.",
-            body_style,
+        artifact_table.setStyle(
+            TableStyle(
+                [
+                    (
+                        "BACKGROUND",
+                        (0, 0),
+                        (-1, 0),
+                        colors.HexColor(
+                            "#0E1522"
+                        ),
+                    ),
+                    (
+                        "TEXTCOLOR",
+                        (0, 0),
+                        (-1, 0),
+                        colors.white,
+                    ),
+                    (
+                        "GRID",
+                        (0, 0),
+                        (-1, -1),
+                        0.4,
+                        colors.grey,
+                    ),
+                    (
+                        "FONTNAME",
+                        (0, 0),
+                        (-1, 0),
+                        "Helvetica-Bold",
+                    ),
+                    (
+                        "FONTSIZE",
+                        (0, 0),
+                        (-1, -1),
+                        7,
+                    ),
+                ]
+            )
         )
-    )
 
-    document.build(story)
+        story.append(
+            artifact_table
+        )
+
+    document.build(
+        story
+    )
 
     buffer.seek(0)
 
@@ -452,18 +646,25 @@ async def export_pdf(request: Request):
 
         if not body:
             return JSONResponse(
-                {"error": "Scan result is required."},
+                {
+                    "error": (
+                        "Scan result is required."
+                    )
+                },
                 status_code=400,
             )
 
-        pdf_bytes = build_pdf(body)
+        pdf = build_pdf(
+            body
+        )
 
         return Response(
-            content=pdf_bytes,
+            content=pdf,
             media_type="application/pdf",
             headers={
                 "Content-Disposition": (
-                    'attachment; filename="ecdat-assessment.pdf"'
+                    'attachment; '
+                    'filename="ecdat-assessment.pdf"'
                 )
             },
         )
@@ -503,8 +704,7 @@ routes = [
 
 
 app = Starlette(
-    debug=True,
-    routes=routes,
+    routes=routes
 )
 
 app.add_middleware(
@@ -513,6 +713,6 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
-    allow_methods=["GET", "POST"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )

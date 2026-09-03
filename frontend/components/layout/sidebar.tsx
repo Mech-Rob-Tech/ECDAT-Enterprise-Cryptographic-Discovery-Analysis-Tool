@@ -13,10 +13,15 @@ const navigation = [
     ],
   },
   {
+    label: "ANALYSIS",
+    items: [
+      { name: "Analysis Tools", href: "/analysis" },
+    ],
+  },
+  {
     label: "ASSESS",
     items: [
       { name: "Quantum Risk", href: "/quantum" },
-      { name: "Mosca Analysis", href: "/mosca" },
     ],
   },
   {
@@ -32,6 +37,14 @@ const navigation = [
     ],
   },
 ];
+
+function isAnalysisRoute(pathname: string): boolean {
+  return (
+    pathname === "/analysis" ||
+    pathname === "/topology" ||
+    pathname === "/mosca"
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -70,7 +83,10 @@ export function Sidebar() {
 
             <div className="space-y-0.5">
               {section.items.map((item) => {
-                const active = pathname === item.href;
+                const active =
+                  item.href === "/analysis"
+                    ? isAnalysisRoute(pathname)
+                    : pathname === item.href;
 
                 return (
                   <Link
