@@ -2,6 +2,7 @@ from typing import Dict, List
 
 from model.schema import (
     Application,
+    BusinessContext,
     Component,
     CryptoArtifact,
     Evidence,
@@ -21,9 +22,6 @@ def relationship_id(
 ) -> str:
     """
     Generate a deterministic relationship identifier.
-
-    The same source, relationship type, and target always produce
-    the same relationship ID.
     """
     return f"{source_id}|{relationship_type}|{target_id}"
 
@@ -87,9 +85,6 @@ def build_components(
 ) -> List[Component]:
     """
     Build conservative source-file components.
-
-    A component is created only for a source file that contains
-    cryptographic evidence.
     """
     component_by_path: Dict[str, Component] = {}
 
@@ -157,7 +152,7 @@ def build_structural_relationships(
     evidence_by_id: Dict[str, Evidence],
 ) -> List[Relationship]:
     """
-    Build the structural relationships:
+    Build structural relationships:
 
         Application contains Component
         Component uses CryptoArtifact
@@ -211,6 +206,39 @@ def build_structural_relationships(
     return relationships
 
 
+def build_business_context_relationships(
+    applications: List[Application],
+    business_contexts: List[BusinessContext],
+) -> List[Relationship]:
+    """
+    Build application-to-business-context relationships.
+
+        Application has_business_context BusinessContext
+    """
+    relationships: List[Relationship] = []
+
+    application_ids = {
+        application.application_id
+        for application in applications
+    }
+
+    for context in business_contexts:
+        if context.application_id not in application_ids:
+            continue
+
+        relationships.append(
+            build_relationship(
+                source_id=context.application_id,
+                target_id=context.context_id,
+                relationship_type="has_business_context",
+                confidence=context.confidence,
+                evidence_ids=context.evidence_ids,
+            )
+        )
+
+    return relationships
+
+
 def build_analytical_relationships(
     artifacts: List[CryptoArtifact],
     risk_assessments: List[RiskAssessment],
@@ -220,13 +248,7 @@ def build_analytical_relationships(
     verification_states: List[VerificationState],
 ) -> List[Relationship]:
     """
-    Build analytical relationships:
-
-        Artifact has_risk RiskAssessment
-        Artifact evaluated_by MoscaAssessment
-        Artifact has_recommendation Recommendation
-        Artifact candidate_for MigrationOption
-        Artifact verified_by VerificationState
+    Build analytical relationships.
     """
     relationships: List[Relationship] = []
 
@@ -327,6 +349,7 @@ def build_relationships(
     recommendations: List[Recommendation],
     migration_options: List[MigrationOption],
     verification_states: List[VerificationState],
+    business_contexts: List[BusinessContext],
 ) -> List[Relationship]:
     """
     Build the complete canonical relationship set.
@@ -338,6 +361,13 @@ def build_relationships(
         evidence_by_id=evidence_by_id,
     )
 
+    business_context_relationships = (
+        build_business_context_relationships(
+            applications=[application],
+            business_contexts=business_contexts,
+        )
+    )
+
     analytical = build_analytical_relationships(
         artifacts=artifacts,
         risk_assessments=risk_assessments,
@@ -347,4 +377,8 @@ def build_relationships(
         verification_states=verification_states,
     )
 
-    return structural + analytical
+    return (
+        structural
+        + business_context_relationships
+        + analytical
+    )

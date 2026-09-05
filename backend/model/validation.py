@@ -1,6 +1,6 @@
 from typing import Dict, List, Set, Tuple
 
-from model.schema import ECDATScan
+from model.schema import BusinessContext, ECDATScan
 
 
 def _duplicate_ids(ids: List[str]) -> List[str]:
@@ -16,7 +16,108 @@ def _duplicate_ids(ids: List[str]) -> List[str]:
     return sorted(duplicates)
 
 
-def validate_unique_ids(scan: ECDATScan) -> List[str]:
+def validate_business_contexts(
+    scan: ECDATScan,
+) -> List[str]:
+    """
+    Validate Business Context records.
+
+    Business Context must:
+    - belong to a known application
+    - use a supported source
+    - use a supported confidence level
+    - use valid business consequence levels
+    - reference only known evidence
+    """
+    errors: List[str] = []
+
+    application_ids = {
+        application.application_id
+        for application in scan.applications
+    }
+
+    evidence_ids = {
+        evidence.evidence_id
+        for evidence in scan.evidence
+    }
+
+    valid_sources = {
+        "declared",
+        "imported",
+        "inferred",
+        "unresolved",
+    }
+
+    valid_confidence = {
+        "high",
+        "medium",
+        "low",
+    }
+
+    valid_levels = {
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL",
+    }
+
+    for context in scan.business_contexts:
+        if context.application_id not in application_ids:
+            errors.append(
+                f"BusinessContext '{context.context_id}' references "
+                f"unknown application '{context.application_id}'."
+            )
+
+        if context.source not in valid_sources:
+            errors.append(
+                f"BusinessContext '{context.context_id}' has invalid "
+                f"source '{context.source}'."
+            )
+
+        if context.confidence not in valid_confidence:
+            errors.append(
+                f"BusinessContext '{context.context_id}' has invalid "
+                f"confidence '{context.confidence}'."
+            )
+
+        for field_name in (
+            "operational_criticality",
+            "financial_impact",
+            "regulatory_exposure",
+            "customer_impact",
+        ):
+            value = getattr(context, field_name)
+
+            if value not in valid_levels:
+                errors.append(
+                    f"BusinessContext '{context.context_id}' has invalid "
+                    f"{field_name} '{value}'."
+                )
+
+        if context.data_lifetime_years is not None:
+            if (
+                not isinstance(context.data_lifetime_years, int)
+                or context.data_lifetime_years < 0
+            ):
+                errors.append(
+                    f"BusinessContext '{context.context_id}' has invalid "
+                    f"data_lifetime_years "
+                    f"'{context.data_lifetime_years}'."
+                )
+
+        for evidence_id in context.evidence_ids:
+            if evidence_id not in evidence_ids:
+                errors.append(
+                    f"BusinessContext '{context.context_id}' references "
+                    f"unknown evidence '{evidence_id}'."
+                )
+
+    return errors
+
+
+def validate_unique_ids(
+    scan: ECDATScan,
+) -> List[str]:
     errors: List[str] = []
 
     collections = {
@@ -56,6 +157,10 @@ def validate_unique_ids(scan: ECDATScan) -> List[str]:
             item.verification_id
             for item in scan.verification
         ],
+        "business_contexts": [
+            item.context_id
+            for item in scan.business_contexts
+        ],
     }
 
     for collection_name, ids in collections.items():
@@ -79,7 +184,9 @@ def validate_unique_ids(scan: ECDATScan) -> List[str]:
     return errors
 
 
-def build_valid_entity_ids(scan: ECDATScan) -> Set[str]:
+def build_valid_entity_ids(
+    scan: ECDATScan,
+) -> Set[str]:
     valid_ids: Set[str] = set()
 
     valid_ids.update(
@@ -125,6 +232,11 @@ def build_valid_entity_ids(scan: ECDATScan) -> Set[str]:
     valid_ids.update(
         item.verification_id
         for item in scan.verification
+    )
+
+    valid_ids.update(
+        item.context_id
+        for item in scan.business_contexts
     )
 
     return valid_ids
@@ -193,21 +305,25 @@ def build_entity_type_map(
     for item in scan.verification:
         entity_types[item.verification_id] = "VerificationState"
 
+    for item in scan.business_contexts:
+        entity_types[item.context_id] = "BusinessContext"
+
     return entity_types
 
 
 # Relationship semantic contract:
 #
-# source type       relationship       target type
+# source type       relationship          target type
 #
-# Application       contains            Component
-# Component         uses                CryptoArtifact
-# CryptoArtifact    evidenced_by       Evidence
-# CryptoArtifact    has_risk            RiskAssessment
-# CryptoArtifact    evaluated_by        MoscaAssessment
-# CryptoArtifact    has_recommendation Recommendation
-# CryptoArtifact    candidate_for       MigrationOption
-# CryptoArtifact    verified_by         VerificationState
+# Application       contains              Component
+# Application       has_business_context  BusinessContext
+# Component         uses                  CryptoArtifact
+# CryptoArtifact    evidenced_by          Evidence
+# CryptoArtifact    has_risk              RiskAssessment
+# CryptoArtifact    evaluated_by          MoscaAssessment
+# CryptoArtifact    has_recommendation    Recommendation
+# CryptoArtifact    candidate_for         MigrationOption
+# CryptoArtifact    verified_by           VerificationState
 #
 RELATIONSHIP_CONTRACT: Dict[
     str,
@@ -216,6 +332,10 @@ RELATIONSHIP_CONTRACT: Dict[
     "contains": (
         "Application",
         "Component",
+    ),
+    "has_business_context": (
+        "Application",
+        "BusinessContext",
     ),
     "uses": (
         "Component",
@@ -530,6 +650,10 @@ def validate_canonical_scan(
 
     errors.extend(
         validate_unique_ids(scan)
+    )
+
+    errors.extend(
+        validate_business_contexts(scan)
     )
 
     errors.extend(

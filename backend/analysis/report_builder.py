@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
 from model.canonical import build_canonical_scan
-
+from analysis.risk_landscape import build_risk_landscape
 
 def build_artifact_record(
     artifact: Dict[str, Any],
@@ -30,7 +30,10 @@ def build_report(
         scan_results,
         mosca_inputs=mosca_inputs,
     )
-
+    risk_landscape = build_risk_landscape(
+        artifacts=canonical_scan.artifacts,
+        business_contexts=canonical_scan.business_contexts,
+    )
     canonical_artifacts = []
 
     for artifact in canonical_scan.artifacts:
@@ -268,6 +271,26 @@ def build_report(
         },
         "applications": applications,
         "components": components,
+        "business_contexts": [
+            {
+                "context_id": context.context_id,
+                "application_id": context.application_id,
+                "business_unit": context.business_unit,
+                "owner": context.owner,
+                "service": context.service,
+                "data_classification": context.data_classification,
+                "data_lifetime_years": context.data_lifetime_years,
+                "operational_criticality": context.operational_criticality,
+                "financial_impact": context.financial_impact,
+                "regulatory_exposure": context.regulatory_exposure,
+                "customer_impact": context.customer_impact,
+                "risk_appetite": context.risk_appetite,
+                "source": context.source,
+                "confidence": context.confidence,
+                "evidence_ids": list(context.evidence_ids),
+            }
+            for context in canonical_scan.business_contexts
+        ],
         "evidence": evidence,
         "relationships": relationships,
         "risk_assessments": risk_assessments,
@@ -276,6 +299,7 @@ def build_report(
         "migration_options": migration_options,
         "verification": verification,
         "canonical_artifacts": canonical_artifacts,
+        "risk_landscape": risk_landscape,
 
         # Legacy compatibility
         "target": scan_results.get("target"),

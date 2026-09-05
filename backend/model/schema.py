@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
-
+from model.business_context import BusinessContext
+from model.scan_state import ScanState
 
 @dataclass
 class ScanMetadata:
@@ -107,8 +108,31 @@ class MigrationOption:
 
 @dataclass
 class VerificationState:
+    """
+    Verification result for an artifact migration/remediation.
+
+    Verification is an analytical state derived from comparing
+    persisted scan states. It does not itself perform scanning.
+    """
+
     verification_id: str
     status: str
+
+    from_scan_id: Optional[str] = None
+    to_scan_id: Optional[str] = None
+
+    artifact_id: Optional[str] = None
+    migration_option_id: Optional[str] = None
+
+    risk_before: Optional[str] = None
+    risk_after: Optional[str] = None
+
+    mosca_before: Optional[str] = None
+    mosca_after: Optional[str] = None
+
+    remaining_exposure: List[str] = field(default_factory=list)
+    evidence_ids: List[str] = field(default_factory=list)
+
     verified_at: Optional[str] = None
     notes: Optional[str] = None
 
@@ -161,6 +185,11 @@ class ECDATScan:
     applications: List[Application] = field(default_factory=list)
     components: List[Component] = field(default_factory=list)
 
+    business_contexts: List[BusinessContext] = field(
+        default_factory=list
+    )
+
+    scan_state: Optional[ScanState] = None
     artifacts: List[CryptoArtifact] = field(default_factory=list)
     evidence: List[Evidence] = field(default_factory=list)
 

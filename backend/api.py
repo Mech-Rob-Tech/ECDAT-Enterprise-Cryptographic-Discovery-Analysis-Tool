@@ -22,6 +22,23 @@ from reportlab.platypus import (
 
 from scanner.crypto_scanner import scan_repository
 from analysis.report_builder import build_report
+from analysis.risk_landscape import build_risk_landscape
+from model.scan_state_builder import build_scan_state
+from analysis.scan_diff import build_scan_diff
+from analysis.verification import (
+    build_verification,
+    verification_to_dict,
+)
+from storage.scan_history import (
+    list_scan_states,
+    load_scan_state,
+    save_scan_state,
+)
+from storage.verification_history import (
+    list_verifications,
+    load_verification,
+    save_verification,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -111,10 +128,30 @@ async def scan(request: Request):
             mosca_inputs,
         )
 
-        return JSONResponse(
+        scan_state = build_scan_state(
             report
         )
 
+        save_scan_state(
+            {
+                "scan_id": scan_state.scan_id,
+                "application_ids": scan_state.application_ids,
+                "generated_at": scan_state.generated_at,
+                "target": scan_state.target,
+                "artifact_ids": scan_state.artifact_ids,
+   	        "canonical_artifacts": scan_state.canonical_artifacts,
+                "evidence": scan_state.evidence,
+                "business_contexts": scan_state.business_contexts,
+                "relationships": scan_state.relationships,
+                "risk_landscape": scan_state.risk_landscape,
+                "summary": scan_state.summary,
+                "metadata": scan_state.metadata,
+            }
+        )
+
+        return JSONResponse(
+            report
+        )
     except Exception as exc:
         return JSONResponse(
             {
@@ -124,6 +161,352 @@ async def scan(request: Request):
             status_code=500,
         )
 
+async def risk_landscape(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            {
+                "error": "Request body must be valid JSON."
+            },
+            status_code=400,
+        )
+
+    repository = body.get("repository")
+
+    if not repository:
+        return JSONResponse(
+            {
+                "error": "Repository path is required."
+            },
+            status_code=400,
+        )
+
+    repository_path = (
+        Path(repository)
+        .expanduser()
+        .resolve()
+    )
+
+    if not repository_path.exists():
+        return JSONResponse(
+            {
+                "error": (
+                    "Repository does not exist: "
+                    f"{repository_path}"
+                )
+            },
+            status_code=404,
+        )
+
+    if not repository_path.is_dir():
+        return JSONResponse(
+            {
+                "error": (
+                    "Repository path must be "
+                    "a directory."
+                )
+            },
+            status_code=400,
+        )
+
+    try:
+        scan_results = scan_repository(
+            repository_path
+        )
+
+        mosca_inputs = build_mosca_inputs()
+
+        report = build_report(
+            scan_results,
+            mosca_inputs,
+        )
+
+        return JSONResponse(
+            {
+                "projection": "risk_landscape",
+                "risk_landscape": report.get(
+                    "risk_landscape",
+                    {},
+                ),
+            }
+        )
+
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "error": "Risk Landscape analysis failed.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+async def history(request: Request):
+    try:
+        scans = list_scan_states()
+
+        return JSONResponse(
+            {
+                "scans": scans,
+                "total": len(scans),
+            }
+        )
+
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "error": "Failed to load scan history.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+async def diff(request):
+    try:
+        payload = await request.json()
+
+        from_scan_id = str(payload.get("from_scan_id", "")).strip()
+        to_scan_id = str(payload.get("to_scan_id", "")).strip()
+
+        if not from_scan_id:
+            return JSONResponse(
+                {"error": "from_scan_id is required."},
+                status_code=400,
+            )
+
+        if not to_scan_id:
+            return JSONResponse(
+                {"error": "to_scan_id is required."},
+                status_code=400,
+            )
+
+        from_scan = load_scan_state(from_scan_id)
+        to_scan = load_scan_state(to_scan_id)
+
+        if from_scan is None:
+            return JSONResponse(
+                {
+                    "error": "Source scan not found.",
+                    "scan_id": from_scan_id,
+                },
+                status_code=404,
+            )
+
+        if to_scan is None:
+            return JSONResponse(
+                {
+                    "error": "Target scan not found.",
+                    "scan_id": to_scan_id,
+                },
+                status_code=404,
+            )
+
+        return JSONResponse(
+            build_scan_diff(from_scan, to_scan)
+        )
+
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "error": "ECDAT scan diff failed.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+
+async def verify(request: Request):
+    """
+    Verify a migration/remediation using two persisted scan states.
+
+    No repository is rescanned. Verification is derived exclusively
+    from historical canonical scan states and their semantic diff.
+    """
+    try:
+        payload = await request.json()
+
+        from_scan_id = str(
+            payload.get("from_scan_id", "")
+        ).strip()
+
+        to_scan_id = str(
+            payload.get("to_scan_id", "")
+        ).strip()
+
+        artifact_id = str(
+            payload.get("artifact_id", "")
+        ).strip()
+
+        migration_option_id = (
+            str(payload.get("migration_option_id", "")).strip()
+            or None
+        )
+
+        replacement_artifact_id = (
+            str(
+                payload.get(
+                    "replacement_artifact_id",
+                    "",
+                )
+            ).strip()
+            or None
+        )
+
+        if not from_scan_id:
+            return JSONResponse(
+                {
+                    "error": "from_scan_id is required."
+                },
+                status_code=400,
+            )
+
+        if not to_scan_id:
+            return JSONResponse(
+                {
+                    "error": "to_scan_id is required."
+                },
+                status_code=400,
+            )
+
+        if not artifact_id:
+            return JSONResponse(
+                {
+                    "error": "artifact_id is required."
+                },
+                status_code=400,
+            )
+
+        from_scan = load_scan_state(
+            from_scan_id
+        )
+
+        to_scan = load_scan_state(
+            to_scan_id
+        )
+
+        if from_scan is None:
+            return JSONResponse(
+                {
+                    "error": "Source scan not found.",
+                    "scan_id": from_scan_id,
+                },
+                status_code=404,
+            )
+
+        if to_scan is None:
+            return JSONResponse(
+                {
+                    "error": "Target scan not found.",
+                    "scan_id": to_scan_id,
+                },
+                status_code=404,
+            )
+
+        diff = build_scan_diff(
+            from_scan,
+            to_scan,
+        )
+
+        verification = build_verification(
+            from_scan=from_scan,
+            to_scan=to_scan,
+            diff=diff,
+            artifact_id=artifact_id,
+            migration_option_id=migration_option_id,
+            replacement_artifact_id=replacement_artifact_id,
+        )
+
+        verification_payload = verification_to_dict(
+            verification
+        )
+
+        save_verification(
+            verification_payload
+        )
+
+        return JSONResponse(
+            {
+                "projection": "verification",
+                "verification": verification_payload,
+                "diff_summary": diff.get(
+                    "summary",
+                    {},
+                ),
+                "persisted": True,
+            }
+        )
+
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "error": "ECDAT verification failed.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+
+async def verifications(request: Request):
+    """
+    Return persisted verification summaries.
+    """
+    try:
+        records = list_verifications()
+
+        return JSONResponse(
+            {
+                "verifications": records,
+                "total": len(records),
+            }
+        )
+
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "error": "Failed to load verification history.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+
+async def verification_detail(request: Request):
+    """
+    Return one persisted verification record.
+    """
+    verification_id = str(
+        request.path_params.get(
+            "verification_id",
+            "",
+        )
+    ).strip()
+
+    if not verification_id:
+        return JSONResponse(
+            {
+                "error": "verification_id is required."
+            },
+            status_code=400,
+        )
+
+    verification = load_verification(
+        verification_id
+    )
+
+    if verification is None:
+        return JSONResponse(
+            {
+                "error": "Verification not found.",
+                "verification_id": verification_id,
+            },
+            status_code=404,
+        )
+
+    return JSONResponse(
+        {
+            "verification": verification,
+        }
+    )
 
 async def export_json(request: Request):
     try:
@@ -689,6 +1072,24 @@ routes = [
         "/scan",
         scan,
         methods=["POST"],
+    ),
+    Route(
+        "/risk-landscape",
+        risk_landscape,
+        methods=["POST"],
+    ),
+    Route(
+        "/history",
+        history,
+        methods=["GET"],
+    ),
+    Route("/diff", diff, methods=["POST"]),
+    Route("/verify", verify, methods=["POST"]),
+    Route("/verifications", verifications, methods=["GET"]),
+    Route(
+        "/verifications/{verification_id:path}",
+        verification_detail,
+        methods=["GET"],
     ),
     Route(
         "/export/json",

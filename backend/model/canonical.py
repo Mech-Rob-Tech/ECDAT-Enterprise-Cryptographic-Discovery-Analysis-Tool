@@ -5,6 +5,10 @@ from analysis.mosca import calculate_mosca_risk
 from analysis.recommendations import get_recommendation
 from analysis.quantum_risk import assess_quantum_risk
 
+from model.identity import (
+    build_artifact_id,
+    build_evidence_id,
+)
 from model.relationships import (
     build_components,
     build_relationships,
@@ -13,6 +17,7 @@ from model.relationships import (
 from model.schema import (
     Algorithm,
     Application,
+    BusinessContext,
     CryptoArtifact,
     Detection,
     ECDATScan,
@@ -52,8 +57,10 @@ def normalize_confidence(value: Any) -> str:
     if isinstance(value, (int, float)):
         if value >= 0.9:
             return "high"
+
         if value >= 0.6:
             return "medium"
+
         return "low"
 
     value = str(value).strip().lower()
@@ -74,8 +81,10 @@ def normalize_business_criticality(value: Any) -> str:
     if isinstance(value, (int, float)):
         if value >= 4:
             return "High"
+
         if value >= 3:
             return "Medium"
+
         return "Low"
 
     normalized = str(value).strip().lower()
@@ -95,7 +104,9 @@ def normalize_business_criticality(value: Any) -> str:
     return mapping.get(normalized, "Medium")
 
 
-def normalize_purpose(artifact: Dict[str, Any]) -> Purpose:
+def normalize_purpose(
+    artifact: Dict[str, Any],
+) -> Purpose:
     """
     Convert scanner purpose information into the canonical model.
     """
@@ -111,7 +122,9 @@ def normalize_purpose(artifact: Dict[str, Any]) -> Purpose:
     )
 
 
-def normalize_detection(artifact: Dict[str, Any]) -> Detection:
+def normalize_detection(
+    artifact: Dict[str, Any],
+) -> Detection:
     """
     Convert scanner detection metadata into the canonical model.
     """
@@ -130,22 +143,60 @@ def normalize_detection(artifact: Dict[str, Any]) -> Detection:
 
 def build_evidence(
     artifact: Dict[str, Any],
+    artifact_id: str,
 ) -> Evidence:
     """
-    Convert one scanner finding into one canonical evidence object.
+    Convert one scanner observation into canonical evidence.
+
+    Evidence identity intentionally retains source location because
+    evidence represents where and how the artifact was observed.
     """
-    evidence_id = stable_id(
-        "evidence",
-        artifact.get("artifact_id"),
+    evidence_id = build_evidence_id(
+        artifact_id=artifact_id,
+        file=str(
+            artifact.get(
+                "file",
+                "",
+            )
+        ),
+        line=int(
+            artifact.get(
+                "line",
+                0,
+            )
+        ),
+        evidence=str(
+            artifact.get(
+                "evidence",
+                "",
+            )
+        ),
     )
 
-    context = artifact.get("evidence_context") or []
+    context = artifact.get(
+        "evidence_context"
+    ) or []
 
     return Evidence(
         evidence_id=evidence_id,
-        file=str(artifact.get("file", "")),
-        line=int(artifact.get("line", 0)),
-        text=str(artifact.get("evidence", "")),
+        file=str(
+            artifact.get(
+                "file",
+                "",
+            )
+        ),
+        line=int(
+            artifact.get(
+                "line",
+                0,
+            )
+        ),
+        text=str(
+            artifact.get(
+                "evidence",
+                "",
+            )
+        ),
         context=context,
     )
 
@@ -156,13 +207,24 @@ def build_algorithm(
     """
     Convert scanner algorithm information into the canonical model.
     """
-    name = str(artifact.get("algorithm", "UNKNOWN"))
+    name = str(
+        artifact.get(
+            "algorithm",
+            "UNKNOWN",
+        )
+    )
 
-    family = artifact.get("algorithm_family")
+    family = artifact.get(
+        "algorithm_family"
+    )
 
     return Algorithm(
         name=name,
-        family=str(family) if family is not None else None,
+        family=(
+            str(family)
+            if family is not None
+            else None
+        ),
     )
 
 
@@ -176,7 +238,9 @@ def build_risk_assessment(
     """
     assessment_id = stable_id(
         "risk",
-        artifact.get("artifact_id"),
+        artifact.get(
+            "artifact_id"
+        ),
     )
 
     return RiskAssessment(
@@ -208,7 +272,9 @@ def build_quantum_risk(
     """
     Preserve the scanner's current quantum-risk assessment.
     """
-    result = assess_quantum_risk(artifact)
+    result = assess_quantum_risk(
+        artifact
+    )
 
     from model.schema import QuantumRisk
 
@@ -239,7 +305,10 @@ def build_mosca_assessment(
     reimplemented here.
     """
     algorithm = str(
-        artifact.get("algorithm", "")
+        artifact.get(
+            "algorithm",
+            "",
+        )
     )
 
     asymmetric_algorithms = {
@@ -269,10 +338,12 @@ def build_mosca_assessment(
         15,
     )
 
-    business_criticality = normalize_business_criticality(
-        inputs.get(
-            "business_criticality",
-            "Medium",
+    business_criticality = (
+        normalize_business_criticality(
+            inputs.get(
+                "business_criticality",
+                "Medium",
+            )
         )
     )
 
@@ -286,7 +357,9 @@ def build_mosca_assessment(
     return MoscaAssessment(
         assessment_id=stable_id(
             "mosca",
-            artifact.get("artifact_id"),
+            artifact.get(
+                "artifact_id"
+            ),
         ),
         risk=str(
             result.get(
@@ -320,7 +393,10 @@ def classify_recommendation(
     how the recommendation should be represented in the canonical model.
     """
     algorithm = str(
-        artifact.get("algorithm", "")
+        artifact.get(
+            "algorithm",
+            "",
+        )
     )
 
     text = recommendation_text.lower()
@@ -447,7 +523,9 @@ def build_recommendation(
     return Recommendation(
         recommendation_id=stable_id(
             "recommendation",
-            artifact.get("artifact_id"),
+            artifact.get(
+                "artifact_id"
+            ),
             classification["category"],
         ),
         category=classification["category"],
@@ -468,7 +546,10 @@ def build_migration_options(
     produce migration options.
     """
     algorithm = str(
-        artifact.get("algorithm", "")
+        artifact.get(
+            "algorithm",
+            "",
+        )
     )
 
     purpose = str(
@@ -490,7 +571,9 @@ def build_migration_options(
             MigrationOption(
                 option_id=stable_id(
                     "migration",
-                    artifact.get("artifact_id"),
+                    artifact.get(
+                        "artifact_id"
+                    ),
                     name,
                 ),
                 name=name,
@@ -624,7 +707,7 @@ def build_migration_options(
 
 
 def build_verification_state(
-    artifact: Dict[str, Any],
+    artifact_id: str,
 ) -> VerificationState:
     """
     Create the initial verification state for an artifact.
@@ -632,9 +715,10 @@ def build_verification_state(
     return VerificationState(
         verification_id=stable_id(
             "verification",
-            artifact.get("artifact_id"),
+            artifact_id,
         ),
         status="not_verified",
+        artifact_id=artifact_id,
         verified_at=None,
         notes=(
             "Verification requires a subsequent scan after "
@@ -643,47 +727,119 @@ def build_verification_state(
     )
 
 
+def build_canonical_artifact_id(
+    artifact: Dict[str, Any],
+    application_id: str,
+) -> str:
+    """
+    Build stable logical identity for a cryptographic artifact.
+
+    Source file, line number, scan timestamp, and scanner
+    discovery order are deliberately excluded.
+
+    Multiple indistinguishable source observations represent
+    one logical artifact and are modeled through evidence.
+    """
+    algorithm = str(
+        artifact.get(
+            "algorithm",
+            "UNKNOWN",
+        )
+    )
+
+    artifact_type = str(
+        artifact.get(
+            "type",
+            "cryptographic_artifact",
+        )
+    )
+
+    purpose = str(
+        artifact.get(
+            "purpose",
+            "unknown",
+        )
+    )
+
+    details = dict(
+        artifact.get(
+            "details",
+            {},
+        )
+    )
+
+    for key in (
+        "key_size",
+        "mode",
+        "curve",
+        "version",
+        "algorithm_family",
+    ):
+        value = artifact.get(key)
+
+        if value is not None:
+            details[key] = value
+
+    semantic_signature = artifact.get(
+        "semantic_signature"
+    )
+
+    return build_artifact_id(
+        application_id=application_id,
+        algorithm=algorithm,
+        artifact_type=artifact_type,
+        purpose=purpose,
+        details=details,
+        semantic_signature=semantic_signature,
+    )
+
 def build_canonical_artifact(
     artifact: Dict[str, Any],
     evidence: Evidence,
+    artifact_id: str,
     risk_assessment: RiskAssessment,
     quantum_risk: Any,
     mosca_assessment: Optional[MoscaAssessment],
     recommendation: Recommendation,
     migration_options: List[MigrationOption],
     verification: VerificationState,
+    application_id: Optional[str] = None,
 ) -> CryptoArtifact:
     """
     Convert a scanner artifact into the canonical representation.
     """
-    artifact_id = str(
-        artifact.get(
-            "artifact_id",
-            stable_id(
-                "artifact",
-                artifact.get("file", ""),
-                artifact.get("line", 0),
-                artifact.get("algorithm", "UNKNOWN"),
-            ),
-        )
-    )
-
     return CryptoArtifact(
         artifact_id=artifact_id,
-        algorithm=build_algorithm(artifact),
+        algorithm=build_algorithm(
+            artifact
+        ),
         artifact_type=str(
             artifact.get(
                 "type",
                 "cryptographic_artifact",
             )
         ),
-        key_size=artifact.get("key_size"),
-        mode=artifact.get("mode"),
-        curve=artifact.get("curve"),
-        version=artifact.get("version"),
-        purpose=normalize_purpose(artifact),
-        detection=normalize_detection(artifact),
-        evidence_ids=[evidence.evidence_id],
+        key_size=artifact.get(
+            "key_size"
+        ),
+        mode=artifact.get(
+            "mode"
+        ),
+        curve=artifact.get(
+            "curve"
+        ),
+        version=artifact.get(
+            "version"
+        ),
+        purpose=normalize_purpose(
+            artifact
+        ),
+        detection=normalize_detection(
+            artifact
+        ),
+        evidence_ids=[
+            evidence.evidence_id
+        ],
         risk=Risk(
             security=risk_assessment,
             quantum=quantum_risk,
@@ -696,11 +852,16 @@ def build_canonical_artifact(
             option.option_id
             for option in migration_options
         ],
-        verification_id=verification.verification_id,
-        application_id=None,
+        verification_id=(
+            verification.verification_id
+        ),
+        application_id=application_id,
         component_id=None,
         details=dict(
-            artifact.get("details", {})
+            artifact.get(
+                "details",
+                {},
+            )
         ),
     )
 
@@ -708,6 +869,7 @@ def build_canonical_artifact(
 def build_canonical_scan(
     scan_results: Dict[str, Any],
     mosca_inputs: Optional[Dict[str, Any]] = None,
+    business_context: Optional[Dict[str, Any]] = None,
 ) -> ECDATScan:
     """
     Convert the existing scanner output into the canonical ECDAT model.
@@ -726,9 +888,13 @@ def build_canonical_scan(
     application = Application(
         application_id=stable_id(
             "application",
-            target,
+            target.rstrip("/").split("/")[-1]
+            or "repository",
         ),
-        name=target.split("/")[-1] or target,
+        name=(
+            target.split("/")[-1]
+            or target
+        ),
         path=target,
     )
 
@@ -743,57 +909,220 @@ def build_canonical_scan(
     migration_options: List[MigrationOption] = []
     verification_states: List[VerificationState] = []
 
+    business_contexts: List[BusinessContext] = []
+
+    raw_business_context = (
+        business_context
+        or scan_results.get(
+            "business_context"
+        )
+    )
+
+    if raw_business_context:
+        context_id = stable_id(
+            "business_context",
+            application.application_id,
+        )
+
+        business_contexts.append(
+            BusinessContext(
+                context_id=context_id,
+                application_id=(
+                    application.application_id
+                ),
+                business_unit=(
+                    raw_business_context.get(
+                        "business_unit"
+                    )
+                ),
+                owner=(
+                    raw_business_context.get(
+                        "owner"
+                    )
+                ),
+                service=(
+                    raw_business_context.get(
+                        "service"
+                    )
+                ),
+                data_classification=(
+                    raw_business_context.get(
+                        "data_classification"
+                    )
+                ),
+                data_lifetime_years=(
+                    raw_business_context.get(
+                        "data_lifetime_years"
+                    )
+                ),
+                operational_criticality=str(
+                    raw_business_context.get(
+                        "operational_criticality",
+                        "MEDIUM",
+                    )
+                ).upper(),
+                financial_impact=str(
+                    raw_business_context.get(
+                        "financial_impact",
+                        "MEDIUM",
+                    )
+                ).upper(),
+                regulatory_exposure=str(
+                    raw_business_context.get(
+                        "regulatory_exposure",
+                        "MEDIUM",
+                    )
+                ).upper(),
+                customer_impact=str(
+                    raw_business_context.get(
+                        "customer_impact",
+                        "MEDIUM",
+                    )
+                ).upper(),
+                risk_appetite=(
+                    raw_business_context.get(
+                        "risk_appetite"
+                    )
+                ),
+                source=str(
+                    raw_business_context.get(
+                        "source",
+                        "declared",
+                    )
+                ),
+                confidence=str(
+                    raw_business_context.get(
+                        "confidence",
+                        "high",
+                    )
+                ).lower(),
+                evidence_ids=list(
+                    raw_business_context.get(
+                        "evidence_ids",
+                        [],
+                    )
+                ),
+            )
+        )
+
     raw_artifacts = scan_results.get(
         "artifacts",
         [],
     )
 
+    artifact_by_id: Dict[str, CryptoArtifact] = {}
+
     for raw_artifact in raw_artifacts:
+        canonical_artifact_id = (
+            build_canonical_artifact_id(
+                raw_artifact,
+                application.application_id,
+            )
+        )
+
+        existing_artifact = artifact_by_id.get(
+            canonical_artifact_id
+        )
+
+        if existing_artifact is not None:
+            evidence = build_evidence(
+                raw_artifact,
+                canonical_artifact_id,
+            )
+
+            evidence_objects.append(
+                evidence
+            )
+
+            evidence_by_id[
+                evidence.evidence_id
+            ] = evidence
+
+            existing_artifact.evidence_ids.append(
+                evidence.evidence_id
+            )
+
+            continue
+
         evidence = build_evidence(
+            raw_artifact,
+            canonical_artifact_id,
+        )
+
+        evidence_objects.append(
+            evidence
+        )
+
+        evidence_by_id[
+            evidence.evidence_id
+        ] = evidence
+
+        artifact_for_analysis = dict(
             raw_artifact
         )
 
-        evidence_objects.append(evidence)
-        evidence_by_id[evidence.evidence_id] = evidence
+        artifact_for_analysis[
+            "artifact_id"
+        ] = canonical_artifact_id
 
-        risk_assessment = build_risk_assessment(
-            raw_artifact
+        risk_assessment = (
+            build_risk_assessment(
+                artifact_for_analysis
+            )
         )
 
         quantum_risk = build_quantum_risk(
-            raw_artifact
+            artifact_for_analysis
         )
 
-        mosca_assessment = build_mosca_assessment(
-            raw_artifact,
-            mosca_inputs,
+        mosca_assessment = (
+            build_mosca_assessment(
+                artifact_for_analysis,
+                mosca_inputs,
+            )
         )
 
-        recommendation = build_recommendation(
-            raw_artifact
+        recommendation = (
+            build_recommendation(
+                artifact_for_analysis
+            )
         )
 
         options = build_migration_options(
-            raw_artifact,
+            artifact_for_analysis,
             recommendation,
         )
 
-        verification = build_verification_state(
-            raw_artifact
+        verification = (
+            build_verification_state(
+                canonical_artifact_id
+            )
         )
 
-        canonical_artifact = build_canonical_artifact(
-            artifact=raw_artifact,
-            evidence=evidence,
-            risk_assessment=risk_assessment,
-            quantum_risk=quantum_risk,
-            mosca_assessment=mosca_assessment,
-            recommendation=recommendation,
-            migration_options=options,
-            verification=verification,
+        canonical_artifact = (
+            build_canonical_artifact(
+                artifact=artifact_for_analysis,
+                evidence=evidence,
+                artifact_id=canonical_artifact_id,
+                risk_assessment=risk_assessment,
+                quantum_risk=quantum_risk,
+                mosca_assessment=mosca_assessment,
+                recommendation=recommendation,
+                migration_options=options,
+                verification=verification,
+                application_id=(
+                    application.application_id
+                ),
+            )
         )
 
-        artifacts.append(canonical_artifact)
+        artifact_by_id[
+            canonical_artifact_id
+        ] = canonical_artifact
+
+        artifacts.append(
+            canonical_artifact
+        )
 
         risk_assessments.append(
             risk_assessment
@@ -838,6 +1167,7 @@ def build_canonical_scan(
         recommendations=recommendations,
         migration_options=migration_options,
         verification_states=verification_states,
+        business_contexts=business_contexts,
     )
 
     risk_summary = dict(
@@ -861,9 +1191,13 @@ def build_canonical_scan(
                 0,
             )
         ),
-        total_artifacts=len(artifacts),
+        total_artifacts=len(
+            artifacts
+        ),
         security_risk_summary=risk_summary,
-        quantum_relevant_assets=quantum_relevant_assets,
+        quantum_relevant_assets=(
+            quantum_relevant_assets
+        ),
     )
 
     metadata = ScanMetadata(
@@ -878,14 +1212,29 @@ def build_canonical_scan(
     return ECDATScan(
         metadata=metadata,
         summary=summary,
-        applications=[application],
+        applications=[
+            application
+        ],
+        business_contexts=(
+            business_contexts
+        ),
         components=components,
         artifacts=artifacts,
         evidence=evidence_objects,
         relationships=relationships,
-        risk_assessments=risk_assessments,
-        mosca_assessments=mosca_assessments,
-        recommendations=recommendations,
-        migration_options=migration_options,
-        verification=verification_states,
+        risk_assessments=(
+            risk_assessments
+        ),
+        mosca_assessments=(
+            mosca_assessments
+        ),
+        recommendations=(
+            recommendations
+        ),
+        migration_options=(
+            migration_options
+        ),
+        verification=(
+            verification_states
+        ),
     )

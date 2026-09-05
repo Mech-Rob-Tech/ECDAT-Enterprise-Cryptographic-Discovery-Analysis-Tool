@@ -21,7 +21,7 @@ password_hash = hashlib.sha256(
 ).digest()
 
 legacy_hash = hashlib.md5(
-    b"legacy"
+    b"legacy-password"
 ).digest()
 
 context = ssl.SSLContext(
