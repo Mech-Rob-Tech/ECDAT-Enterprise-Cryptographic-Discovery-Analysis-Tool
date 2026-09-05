@@ -109,3 +109,48 @@ def test_public_function_has_no_algorithm_specific_lookup_table():
 
     for pattern in forbidden:
         assert pattern not in source
+
+
+def test_recommendation_snapshot_is_current():
+    from analysis.recommendations import (
+        recommendation_freshness,
+    )
+
+    artifact = {
+        "algorithm": "RSA",
+        "purpose": "digital_signature",
+        "risk": {
+            "quantum": {
+                "level": "HIGH"
+            }
+        },
+    }
+
+    recommendation = build_recommendation(
+        artifact
+    )
+
+    state = recommendation_freshness(
+        recommendation
+    )
+
+    assert state["state"] == "VALID"
+    assert state["reanalysis_required"] is False
+
+
+def test_old_recommendation_becomes_stale():
+    from analysis.recommendations import (
+        recommendation_freshness,
+    )
+
+    recommendation = {
+        "knowledge_version": "0.4.0",
+        "knowledge_hash": "0" * 64,
+    }
+
+    state = recommendation_freshness(
+        recommendation
+    )
+
+    assert state["state"] == "STALE"
+    assert state["reanalysis_required"] is True

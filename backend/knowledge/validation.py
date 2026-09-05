@@ -160,6 +160,27 @@ def validate_registry(
     for item in registry.migrations:
         validate_migration(item)
 
+    source_ids = {
+        source.source_id
+        for source in registry.provenance
+    }
+
+    for compatibility in registry.compatibility:
+        for source_id in compatibility.source_ids:
+            if source_id not in source_ids:
+                raise ValueError(
+                    f"{compatibility.compatibility_id}: "
+                    f"unknown source {source_id}"
+                )
+
+    for migration in registry.migrations:
+        for source_id in migration.source_ids:
+            if source_id not in source_ids:
+                raise ValueError(
+                    f"{migration.relationship_id}: "
+                    f"unknown source {source_id}"
+                )
+
     algorithm_names = {
         item.name.upper()
         for item in registry.algorithms

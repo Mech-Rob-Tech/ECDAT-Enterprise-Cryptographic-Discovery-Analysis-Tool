@@ -29,6 +29,7 @@ from analysis.verification import (
     build_verification,
     verification_to_dict,
 )
+from knowledge.service import KnowledgeService
 from storage.scan_history import (
     list_scan_states,
     load_scan_state,
@@ -42,6 +43,8 @@ from storage.verification_history import (
 
 
 BASE_DIR = Path(__file__).resolve().parent
+
+KNOWLEDGE = KnowledgeService()
 
 
 def build_mosca_inputs(
@@ -1062,6 +1065,405 @@ async def export_pdf(request: Request):
         )
 
 
+
+def _knowledge_algorithm_dict(item):
+    return {
+        "knowledge_id": item.knowledge_id,
+        "name": item.name,
+        "aliases": list(item.aliases),
+        "family": item.family,
+        "primitive": item.primitive,
+        "purposes": list(item.purposes),
+        "lifecycle_status": item.lifecycle_status,
+        "quantum_posture": item.quantum_posture,
+        "security_strength": {
+            "classical_bits": item.security_strength.classical_bits,
+            "quantum_bits": item.security_strength.quantum_bits,
+            "basis": item.security_strength.basis,
+        },
+        "key_sizes": list(item.key_sizes),
+        "standards": list(item.standards),
+        "description": item.description,
+        "notes": item.notes,
+        "effective_from": item.effective_from,
+        "effective_until": item.effective_until,
+        "source_ids": list(item.source_ids),
+        "confidence": item.confidence,
+        "record_version": item.record_version,
+    }
+
+
+def _knowledge_standard_dict(item):
+    return {
+        "standard_id": item.standard_id,
+        "authority": item.authority,
+        "identifier": item.identifier,
+        "title": item.title,
+        "status": item.status,
+        "published_at": item.published_at,
+        "effective_from": item.effective_from,
+        "effective_until": item.effective_until,
+        "related_algorithms": list(item.related_algorithms),
+        "supersedes": list(item.supersedes),
+        "source_ids": list(item.source_ids),
+        "confidence": item.confidence,
+        "record_version": item.record_version,
+    }
+
+
+def _knowledge_migration_dict(item):
+    return {
+        "relationship_id": item.relationship_id,
+        "source_algorithm": item.source_algorithm,
+        "target_algorithm": item.target_algorithm,
+        "relationship_type": item.relationship_type,
+        "applicable_purposes": list(item.applicable_purposes),
+        "hybrid": item.hybrid,
+        "prerequisites": list(item.prerequisites),
+        "constraints": list(item.constraints),
+        "source_ids": list(item.source_ids),
+        "effective_from": item.effective_from,
+        "effective_until": item.effective_until,
+        "confidence": item.confidence,
+        "record_version": item.record_version,
+    }
+
+
+def _knowledge_compatibility_dict(item):
+    return {
+        "compatibility_id": item.compatibility_id,
+        "algorithm": item.algorithm,
+        "target_type": item.target_type,
+        "target_name": item.target_name,
+        "version_min": item.version_min,
+        "version_max": item.version_max,
+        "status": item.status,
+        "constraints": list(item.constraints),
+        "source_ids": list(item.source_ids),
+        "effective_from": item.effective_from,
+        "effective_until": item.effective_until,
+        "confidence": item.confidence,
+        "record_version": item.record_version,
+    }
+
+
+def _knowledge_conflict_dict(item):
+    return {
+        "conflict_id": item.conflict_id,
+        "subject_type": item.subject_type,
+        "subject_id": item.subject_id,
+        "field": item.field,
+        "values": list(item.values),
+        "source_ids": list(item.source_ids),
+        "resolution": item.resolution,
+        "severity": item.severity,
+    }
+
+
+async def knowledge(request: Request):
+    params = request.query_params
+
+    query = params.get("q", "").strip().lower()
+    primitive = params.get("primitive", "").strip().lower()
+    lifecycle = params.get("lifecycle", "").strip().lower()
+    quantum = params.get("quantum_posture", "").strip().lower()
+
+    records = []
+
+    for item in KNOWLEDGE.algorithms():
+        searchable = " ".join(
+            [
+                item.name,
+                item.family,
+                item.description,
+                *item.aliases,
+            ]
+        ).lower()
+
+        if query and query not in searchable:
+            continue
+
+        if primitive and item.primitive.lower() != primitive:
+            continue
+
+        if lifecycle and item.lifecycle_status.lower() != lifecycle:
+            continue
+
+        if quantum and item.quantum_posture.lower() != quantum:
+            continue
+
+        records.append(
+            _knowledge_algorithm_dict(item)
+        )
+
+    return JSONResponse(
+        {
+            "projection": "knowledge",
+            "knowledge_snapshot": KNOWLEDGE.snapshot(),
+            "records": records,
+            "total": len(records),
+        }
+    )
+
+
+async def knowledge_snapshot(request: Request):
+    return JSONResponse(
+        {
+            "projection": "knowledge_snapshot",
+            "snapshot": KNOWLEDGE.snapshot(),
+        }
+    )
+
+
+async def knowledge_freshness(request: Request):
+    raw_max_age = request.query_params.get(
+        "max_age_days",
+        "180",
+    )
+
+    try:
+        max_age = int(raw_max_age)
+    except ValueError:
+        return JSONResponse(
+            {
+                "error": "max_age_days must be an integer."
+            },
+            status_code=400,
+        )
+
+    return JSONResponse(
+        {
+            "projection": "knowledge_freshness",
+            "knowledge_snapshot": KNOWLEDGE.snapshot(),
+            "freshness": KNOWLEDGE.freshness(
+                max_age_days=max_age,
+                as_of=request.query_params.get("as_of"),
+            ),
+        }
+    )
+
+
+async def knowledge_standards(request: Request):
+    records = [
+        _knowledge_standard_dict(item)
+        for item in KNOWLEDGE.standards()
+    ]
+
+    return JSONResponse(
+        {
+            "projection": "knowledge_standards",
+            "knowledge_snapshot": KNOWLEDGE.snapshot(),
+            "standards": records,
+            "total": len(records),
+        }
+    )
+
+
+async def knowledge_migrations(request: Request):
+    source = request.query_params.get("source")
+    purpose = request.query_params.get("purpose")
+
+    records = []
+
+    for item in KNOWLEDGE.migrations():
+
+        if source and item.source_algorithm.lower() != source.lower():
+            continue
+
+        if purpose and purpose.lower() not in {
+            value.lower()
+            for value in item.applicable_purposes
+        }:
+            continue
+
+        records.append(
+            _knowledge_migration_dict(item)
+        )
+
+    return JSONResponse(
+        {
+            "projection": "knowledge_migrations",
+            "knowledge_snapshot": KNOWLEDGE.snapshot(),
+            "migrations": records,
+            "total": len(records),
+        }
+    )
+
+
+async def knowledge_compatibility(request: Request):
+    algorithm = request.query_params.get("algorithm")
+    target_type = request.query_params.get("target_type")
+    target_name = request.query_params.get("target_name")
+
+    records = []
+
+    for item in KNOWLEDGE.compatibility():
+
+        if algorithm and item.algorithm.lower() != algorithm.lower():
+            continue
+
+        if target_type and item.target_type.lower() != target_type.lower():
+            continue
+
+        if target_name and item.target_name.lower() != target_name.lower():
+            continue
+
+        records.append(
+            _knowledge_compatibility_dict(item)
+        )
+
+    return JSONResponse(
+        {
+            "projection": "knowledge_compatibility",
+            "knowledge_snapshot": KNOWLEDGE.snapshot(),
+            "compatibility": records,
+            "total": len(records),
+        }
+    )
+
+
+async def knowledge_detail(request: Request):
+    name = request.path_params.get("name", "").strip()
+
+    if not name:
+        return JSONResponse(
+            {
+                "error": "Algorithm name is required."
+            },
+            status_code=400,
+        )
+
+    result = KNOWLEDGE.resolve(
+        name,
+        purpose=request.query_params.get("purpose"),
+        as_of=request.query_params.get("as_of"),
+        target_type=request.query_params.get("target_type"),
+        target_name=request.query_params.get("target_name"),
+        target_version=request.query_params.get("target_version"),
+    )
+
+    if result.algorithm is None:
+        return JSONResponse(
+            {
+                "error": "Cryptographic knowledge not found.",
+                "query": name,
+                "explainability": result.explainability,
+            },
+            status_code=404,
+        )
+
+    return JSONResponse(
+        {
+            "projection": "knowledge_detail",
+            "knowledge_snapshot": KNOWLEDGE.snapshot(),
+            "resolution": {
+                "query": result.query,
+                "normalized_query": result.normalized_query,
+                "matched_by": result.matched_by,
+                "current": result.current,
+                "algorithm": _knowledge_algorithm_dict(
+                    result.algorithm
+                ),
+                "standards": [
+                    _knowledge_standard_dict(item)
+                    for item in result.standards
+                ],
+                "compatibility": [
+                    _knowledge_compatibility_dict(item)
+                    for item in result.compatibility
+                ],
+                "migrations": [
+                    _knowledge_migration_dict(item)
+                    for item in result.migrations
+                ],
+                "conflicts": [
+                    _knowledge_conflict_dict(item)
+                    for item in result.conflicts
+                ],
+                "explainability": result.explainability,
+            },
+        }
+    )
+
+
+async def knowledge_resolve(request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse(
+            {
+                "error": "Request body must be valid JSON."
+            },
+            status_code=400,
+        )
+
+    query = str(
+        payload.get("query", "")
+    ).strip()
+
+    if not query:
+        return JSONResponse(
+            {
+                "error": "query is required."
+            },
+            status_code=400,
+        )
+
+    result = KNOWLEDGE.resolve(
+        query,
+        purpose=payload.get("purpose"),
+        as_of=payload.get("as_of"),
+        target_type=payload.get("target_type"),
+        target_name=payload.get("target_name"),
+        target_version=payload.get("target_version"),
+    )
+
+    return JSONResponse(
+        {
+            "projection": "knowledge_resolution",
+            "knowledge_snapshot": KNOWLEDGE.snapshot(),
+            "resolution": {
+                "status": (
+                    "UNRESOLVED"
+                    if result.algorithm is None
+                    else (
+                        "CONFLICT"
+                        if result.conflicts
+                        else "RESOLVED"
+                    )
+                ),
+                "query": result.query,
+                "normalized_query": result.normalized_query,
+                "matched_by": result.matched_by,
+                "current": result.current,
+                "algorithm": (
+                    None
+                    if result.algorithm is None
+                    else _knowledge_algorithm_dict(
+                        result.algorithm
+                    )
+                ),
+                "standards": [
+                    _knowledge_standard_dict(item)
+                    for item in result.standards
+                ],
+                "compatibility": [
+                    _knowledge_compatibility_dict(item)
+                    for item in result.compatibility
+                ],
+                "migrations": [
+                    _knowledge_migration_dict(item)
+                    for item in result.migrations
+                ],
+                "conflicts": [
+                    _knowledge_conflict_dict(item)
+                    for item in result.conflicts
+                ],
+                "explainability": result.explainability,
+            },
+        }
+    )
+
 routes = [
     Route(
         "/health",
@@ -1089,6 +1491,46 @@ routes = [
     Route(
         "/verifications/{verification_id:path}",
         verification_detail,
+        methods=["GET"],
+    ),
+    Route(
+        "/knowledge",
+        knowledge,
+        methods=["GET"],
+    ),
+    Route(
+        "/knowledge/snapshot",
+        knowledge_snapshot,
+        methods=["GET"],
+    ),
+    Route(
+        "/knowledge/freshness",
+        knowledge_freshness,
+        methods=["GET"],
+    ),
+    Route(
+        "/knowledge/standards",
+        knowledge_standards,
+        methods=["GET"],
+    ),
+    Route(
+        "/knowledge/migrations",
+        knowledge_migrations,
+        methods=["GET"],
+    ),
+    Route(
+        "/knowledge/compatibility",
+        knowledge_compatibility,
+        methods=["GET"],
+    ),
+    Route(
+        "/knowledge/resolve",
+        knowledge_resolve,
+        methods=["POST"],
+    ),
+    Route(
+        "/knowledge/{name:path}",
+        knowledge_detail,
         methods=["GET"],
     ),
     Route(

@@ -381,3 +381,50 @@ def get_migration_candidates(
         }
         for candidate in result.migrations
     ]
+
+
+def recommendation_freshness(
+    recommendation: Dict[str, Any],
+    *,
+    knowledge_service: Optional[KnowledgeService] = None,
+) -> Dict[str, Any]:
+    """
+    Determine whether a persisted recommendation was produced from
+    the current knowledge snapshot.
+    """
+
+    service = (
+        knowledge_service or SERVICE
+    )
+
+    state = service.snapshot_state(
+        recommendation.get(
+            "knowledge_version"
+        ),
+        recommendation.get(
+            "knowledge_hash"
+        ),
+    )
+
+    return {
+        "state": state,
+        "recommendation_knowledge_version": (
+            recommendation.get(
+                "knowledge_version"
+            )
+        ),
+        "recommendation_knowledge_hash": (
+            recommendation.get(
+                "knowledge_hash"
+            )
+        ),
+        "current_knowledge_version": (
+            service.version
+        ),
+        "current_knowledge_hash": (
+            service.integrity_hash
+        ),
+        "reanalysis_required": (
+            state == "STALE"
+        ),
+    }
