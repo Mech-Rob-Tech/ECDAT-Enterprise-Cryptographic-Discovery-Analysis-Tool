@@ -2,7 +2,6 @@
   "schema_version": "1.0.0",
   "knowledge_version": "0.5.0",
   "generated_at": "2026-09-05",
-
   "sources": [
     {
       "source_id": "nist:pqc",
@@ -63,104 +62,161 @@
       "retrieved_at": "2026-09-05"
     }
   ],
-
   "algorithms": [
     {
       "knowledge_id": "alg:rsa",
       "name": "RSA",
-      "aliases": ["RSA", "RSA-2048", "RSA-3072", "RSA-4096"],
+      "aliases": [
+        "RSA",
+        "RSA-2048",
+        "RSA-3072",
+        "RSA-4096"
+      ],
       "family": "RSA",
       "primitive": "signature",
-      "purposes": ["digital_signature", "key_establishment", "encryption"],
+      "purposes": [
+        "digital_signature",
+        "key_establishment",
+        "encryption"
+      ],
       "lifecycle_status": "active",
       "quantum_posture": "quantum_vulnerable",
       "security_strength": {
         "classical_bits": 112,
         "basis": "Parameter dependent classical security estimate."
       },
-      "key_sizes": [2048, 3072, 4096],
-      "standards": ["PKCS#1"],
+      "key_sizes": [
+        2048,
+        3072,
+        4096
+      ],
+      "standards": [
+        "PKCS#1"
+      ],
       "description": "Integer-factorization public-key cryptography.",
       "notes": "Quantum-vulnerable public-key primitive; purpose determines migration path.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:ecdsa",
       "name": "ECDSA",
-      "aliases": ["ECDSA", "EC", "Elliptic Curve Digital Signature Algorithm"],
+      "aliases": [
+        "ECDSA",
+        "EC",
+        "Elliptic Curve Digital Signature Algorithm"
+      ],
       "family": "ECC",
       "primitive": "signature",
-      "purposes": ["digital_signature"],
+      "purposes": [
+        "digital_signature"
+      ],
       "lifecycle_status": "active",
       "quantum_posture": "quantum_vulnerable",
       "security_strength": {
         "classical_bits": 128,
         "basis": "Curve dependent classical security estimate."
       },
-      "key_sizes": [256, 384, 521],
-      "standards": ["FIPS 186-5"],
+      "key_sizes": [
+        256,
+        384,
+        521
+      ],
+      "standards": [
+        "FIPS 186-5"
+      ],
       "description": "Elliptic-curve digital signature algorithm.",
       "notes": "Quantum-vulnerable public-key signature primitive.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:ecdh",
       "name": "ECDH",
-      "aliases": ["ECDH", "Elliptic Curve Diffie-Hellman"],
+      "aliases": [
+        "ECDH",
+        "Elliptic Curve Diffie-Hellman"
+      ],
       "family": "ECC",
       "primitive": "key_exchange",
-      "purposes": ["key_establishment"],
+      "purposes": [
+        "key_establishment"
+      ],
       "lifecycle_status": "active",
       "quantum_posture": "quantum_vulnerable",
       "security_strength": {
         "classical_bits": 128,
         "basis": "Curve dependent classical security estimate."
       },
-      "key_sizes": [256, 384, 521],
+      "key_sizes": [
+        256,
+        384,
+        521
+      ],
       "standards": [],
       "description": "Elliptic-curve key agreement.",
       "notes": "Quantum-vulnerable public-key key-establishment primitive.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:dh",
       "name": "Diffie-Hellman",
-      "aliases": ["Diffie-Hellman", "DH", "DHE"],
+      "aliases": [
+        "Diffie-Hellman",
+        "DH",
+        "DHE"
+      ],
       "family": "finite_field",
       "primitive": "key_exchange",
-      "purposes": ["key_establishment"],
+      "purposes": [
+        "key_establishment"
+      ],
       "lifecycle_status": "active",
       "quantum_posture": "quantum_vulnerable",
       "security_strength": {
         "classical_bits": 112,
         "basis": "Parameter dependent classical security estimate."
       },
-      "key_sizes": [2048, 3072, 4096],
+      "key_sizes": [
+        2048,
+        3072,
+        4096
+      ],
       "standards": [],
       "description": "Finite-field Diffie-Hellman key agreement.",
       "notes": "Quantum-vulnerable public-key key-establishment primitive.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:ml-kem",
       "name": "ML-KEM",
@@ -171,23 +227,34 @@
       ],
       "family": "module_lattice",
       "primitive": "kem",
-      "purposes": ["key_establishment"],
+      "purposes": [
+        "key_establishment"
+      ],
       "lifecycle_status": "standardized",
       "quantum_posture": "quantum_resistant",
       "security_strength": {
         "basis": "Parameter-set dependent security level defined by FIPS 203."
       },
       "key_sizes": [],
-      "standards": ["FIPS 203"],
+      "standards": [
+        "FIPS 203"
+      ],
       "description": "NIST standardized module-lattice-based key-encapsulation mechanism.",
       "notes": "Select a parameter set and implementation profile before deployment.",
       "effective_from": "2024-08-13",
       "effective_until": null,
-      "source_ids": ["nist:fips-203"],
+      "source_ids": [
+        "nist:fips-203"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [
+        "ML-KEM-512",
+        "ML-KEM-768",
+        "ML-KEM-1024"
+      ],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:ml-dsa",
       "name": "ML-DSA",
@@ -198,23 +265,30 @@
       ],
       "family": "module_lattice",
       "primitive": "signature",
-      "purposes": ["digital_signature"],
+      "purposes": [
+        "digital_signature"
+      ],
       "lifecycle_status": "standardized",
       "quantum_posture": "quantum_resistant",
       "security_strength": {
         "basis": "Parameter-set dependent security level defined by FIPS 204."
       },
       "key_sizes": [],
-      "standards": ["FIPS 204"],
+      "standards": [
+        "FIPS 204"
+      ],
       "description": "NIST standardized module-lattice-based digital signature algorithm.",
       "notes": "Select a parameter set and implementation profile before deployment.",
       "effective_from": "2024-08-13",
       "effective_until": null,
-      "source_ids": ["nist:fips-204"],
+      "source_ids": [
+        "nist:fips-204"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:slh-dsa",
       "name": "SLH-DSA",
@@ -225,122 +299,196 @@
       ],
       "family": "hash_based",
       "primitive": "signature",
-      "purposes": ["digital_signature"],
+      "purposes": [
+        "digital_signature"
+      ],
       "lifecycle_status": "standardized",
       "quantum_posture": "quantum_resistant",
       "security_strength": {
         "basis": "Parameter-set dependent security level defined by FIPS 205."
       },
       "key_sizes": [],
-      "standards": ["FIPS 205"],
+      "standards": [
+        "FIPS 205"
+      ],
       "description": "NIST standardized stateless hash-based digital signature algorithm.",
       "notes": "Parameter-set selection and implementation constraints must be evaluated.",
       "effective_from": "2024-08-13",
       "effective_until": null,
-      "source_ids": ["nist:fips-205"],
+      "source_ids": [
+        "nist:fips-205"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:x25519mlkem768",
       "name": "X25519MLKEM768",
-      "aliases": ["X25519MLKEM768", "X25519-MLKEM-768"],
+      "aliases": [
+        "X25519MLKEM768",
+        "X25519-MLKEM-768"
+      ],
       "family": "hybrid",
       "primitive": "composite",
-      "purposes": ["key_establishment"],
+      "purposes": [
+        "key_establishment"
+      ],
       "lifecycle_status": "standardized",
       "quantum_posture": "quantum_resistant",
       "security_strength": {
         "basis": "Hybrid key establishment combining X25519 and ML-KEM-768."
       },
       "key_sizes": [],
-      "standards": ["RFC 10024"],
+      "standards": [
+        "RFC 10024"
+      ],
       "description": "TLS 1.3 hybrid key-establishment mechanism.",
       "notes": "Protocol and implementation interoperability must be verified.",
       "effective_from": "2026-08-04",
       "effective_until": null,
-      "source_ids": ["ietf:rfc-10024"],
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "components": [
+        "alg:x25519",
+        "alg:ml-kem"
+      ],
+      "parameters": [
+        "ML-KEM-768"
+      ]
     },
-
     {
       "knowledge_id": "alg:secp256r1mlkem768",
       "name": "SecP256r1MLKEM768",
-      "aliases": ["SecP256r1MLKEM768", "P256MLKEM768"],
+      "aliases": [
+        "SecP256r1MLKEM768",
+        "P256MLKEM768"
+      ],
       "family": "hybrid",
       "primitive": "composite",
-      "purposes": ["key_establishment"],
+      "purposes": [
+        "key_establishment"
+      ],
       "lifecycle_status": "standardized",
       "quantum_posture": "quantum_resistant",
       "security_strength": {
         "basis": "Hybrid key establishment combining secP256r1 and ML-KEM-768."
       },
       "key_sizes": [],
-      "standards": ["RFC 10024"],
+      "standards": [
+        "RFC 10024"
+      ],
       "description": "TLS 1.3 hybrid key-establishment mechanism.",
       "notes": "Protocol and implementation interoperability must be verified.",
       "effective_from": "2026-08-04",
       "effective_until": null,
-      "source_ids": ["ietf:rfc-10024"],
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "components": [
+        "alg:secp256r1",
+        "alg:ml-kem"
+      ],
+      "parameters": [
+        "ML-KEM-768"
+      ]
     },
-
     {
       "knowledge_id": "alg:secp384r1mlkem1024",
       "name": "SecP384r1MLKEM1024",
-      "aliases": ["SecP384r1MLKEM1024", "P384MLKEM1024"],
+      "aliases": [
+        "SecP384r1MLKEM1024",
+        "P384MLKEM1024"
+      ],
       "family": "hybrid",
       "primitive": "composite",
-      "purposes": ["key_establishment"],
+      "purposes": [
+        "key_establishment"
+      ],
       "lifecycle_status": "standardized",
       "quantum_posture": "quantum_resistant",
       "security_strength": {
         "basis": "Hybrid key establishment combining secP384r1 and ML-KEM-1024."
       },
       "key_sizes": [],
-      "standards": ["RFC 10024"],
+      "standards": [
+        "RFC 10024"
+      ],
       "description": "TLS 1.3 hybrid key-establishment mechanism.",
       "notes": "Protocol and implementation interoperability must be verified.",
       "effective_from": "2026-08-04",
       "effective_until": null,
-      "source_ids": ["ietf:rfc-10024"],
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "components": [
+        "alg:secp384r1",
+        "alg:ml-kem"
+      ],
+      "parameters": [
+        "ML-KEM-1024"
+      ]
     },
-
     {
       "knowledge_id": "alg:aes",
       "name": "AES",
-      "aliases": ["AES", "AES-128", "AES-192", "AES-256"],
+      "aliases": [
+        "AES",
+        "AES-128",
+        "AES-192",
+        "AES-256"
+      ],
       "family": "AES",
       "primitive": "encryption",
-      "purposes": ["encryption"],
+      "purposes": [
+        "encryption"
+      ],
       "lifecycle_status": "active",
       "quantum_posture": "quantum_dependent",
       "security_strength": {
         "basis": "Key-size dependent symmetric security assessment."
       },
-      "key_sizes": [128, 192, 256],
-      "standards": ["FIPS 197"],
+      "key_sizes": [
+        128,
+        192,
+        256
+      ],
+      "standards": [
+        "FIPS 197"
+      ],
       "description": "Advanced Encryption Standard.",
       "notes": "Quantum impact differs from public-key cryptography and must be assessed by security property and key size.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:sha-256",
       "name": "SHA-256",
-      "aliases": ["SHA-256", "SHA256"],
+      "aliases": [
+        "SHA-256",
+        "SHA256"
+      ],
       "family": "SHA-2",
       "primitive": "hash",
-      "purposes": ["hash", "integrity"],
+      "purposes": [
+        "hash",
+        "integrity"
+      ],
       "lifecycle_status": "active",
       "quantum_posture": "quantum_dependent",
       "security_strength": {
@@ -348,23 +496,34 @@
         "basis": "Digest-length dependent security assessment."
       },
       "key_sizes": [],
-      "standards": ["FIPS 180-4"],
+      "standards": [
+        "FIPS 180-4"
+      ],
       "description": "SHA-2 family hash function.",
       "notes": "Quantum impact differs between collision and preimage properties.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:sha-1",
       "name": "SHA-1",
-      "aliases": ["SHA-1", "SHA1"],
+      "aliases": [
+        "SHA-1",
+        "SHA1"
+      ],
       "family": "SHA",
       "primitive": "hash",
-      "purposes": ["hash", "integrity"],
+      "purposes": [
+        "hash",
+        "integrity"
+      ],
       "lifecycle_status": "deprecated",
       "quantum_posture": "quantum_vulnerable",
       "security_strength": {
@@ -377,18 +536,26 @@
       "notes": "Unsuitable for modern security-sensitive cryptographic uses.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:md5",
       "name": "MD5",
-      "aliases": ["MD5"],
+      "aliases": [
+        "MD5"
+      ],
       "family": "MD",
       "primitive": "hash",
-      "purposes": ["hash", "integrity"],
+      "purposes": [
+        "hash",
+        "integrity"
+      ],
       "lifecycle_status": "deprecated",
       "quantum_posture": "quantum_vulnerable",
       "security_strength": {
@@ -401,36 +568,149 @@
       "notes": "Unsuitable for security-sensitive integrity or authentication applications.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
       "confidence": "high",
-      "record_version": 1
+      "record_version": 1,
+      "parameters": [],
+      "components": []
     },
-
     {
       "knowledge_id": "alg:des",
       "name": "DES",
-      "aliases": ["DES"],
+      "aliases": [
+        "DES"
+      ],
       "family": "DES",
       "primitive": "encryption",
-      "purposes": ["encryption"],
+      "purposes": [
+        "encryption"
+      ],
       "lifecycle_status": "deprecated",
       "quantum_posture": "quantum_dependent",
       "security_strength": {
         "classical_bits": 56,
         "basis": "56-bit key."
       },
-      "key_sizes": [56],
+      "key_sizes": [
+        56
+      ],
       "standards": [],
       "description": "Legacy Data Encryption Standard.",
       "notes": "Legacy cipher with inadequate classical security.",
       "effective_from": null,
       "effective_until": null,
-      "source_ids": ["nist:pqc"],
+      "source_ids": [
+        "nist:pqc"
+      ],
+      "confidence": "high",
+      "record_version": 1,
+      "parameters": [],
+      "components": []
+    },
+    {
+      "knowledge_id": "alg:x25519",
+      "name": "X25519",
+      "aliases": [
+        "X25519"
+      ],
+      "family": "elliptic_curve",
+      "primitive": "key_exchange",
+      "purposes": [
+        "key_establishment"
+      ],
+      "lifecycle_status": "active",
+      "quantum_posture": "quantum_vulnerable",
+      "security_strength": {
+        "classical_bits": 128,
+        "basis": "Widely deployed elliptic-curve key exchange."
+      },
+      "key_sizes": [],
+      "parameters": [],
+      "components": [],
+      "standards": [
+        "RFC 7748"
+      ],
+      "description": "Elliptic-curve Diffie-Hellman key exchange over Curve25519.",
+      "notes": "Traditional component of X25519MLKEM768.",
+      "effective_from": null,
+      "effective_until": null,
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
+      "confidence": "high",
+      "record_version": 1
+    },
+    {
+      "knowledge_id": "alg:secp256r1",
+      "name": "secp256r1",
+      "aliases": [
+        "P-256",
+        "NIST P-256"
+      ],
+      "family": "elliptic_curve",
+      "primitive": "key_exchange",
+      "purposes": [
+        "key_establishment"
+      ],
+      "lifecycle_status": "active",
+      "quantum_posture": "quantum_vulnerable",
+      "security_strength": {
+        "classical_bits": 128,
+        "basis": "NIST P-256 elliptic-curve key establishment."
+      },
+      "key_sizes": [],
+      "parameters": [],
+      "components": [],
+      "standards": [
+        "NIST FIPS 186"
+      ],
+      "description": "NIST P-256 elliptic-curve key exchange component.",
+      "notes": "Traditional component of SecP256r1MLKEM768.",
+      "effective_from": null,
+      "effective_until": null,
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
+      "confidence": "high",
+      "record_version": 1
+    },
+    {
+      "knowledge_id": "alg:secp384r1",
+      "name": "secp384r1",
+      "aliases": [
+        "P-384",
+        "NIST P-384"
+      ],
+      "family": "elliptic_curve",
+      "primitive": "key_exchange",
+      "purposes": [
+        "key_establishment"
+      ],
+      "lifecycle_status": "active",
+      "quantum_posture": "quantum_vulnerable",
+      "security_strength": {
+        "classical_bits": 192,
+        "basis": "NIST P-384 elliptic-curve key establishment."
+      },
+      "key_sizes": [],
+      "parameters": [],
+      "components": [],
+      "standards": [
+        "NIST FIPS 186"
+      ],
+      "description": "NIST P-384 elliptic-curve key exchange component.",
+      "notes": "Traditional component of SecP384r1MLKEM1024.",
+      "effective_from": null,
+      "effective_until": null,
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "confidence": "high",
       "record_version": 1
     }
   ],
-
   "standards": [
     {
       "standard_id": "standard:fips-203",
@@ -441,9 +721,13 @@
       "published_at": "2024-08-13",
       "effective_from": "2024-08-13",
       "effective_until": null,
-      "related_algorithms": ["ML-KEM"],
+      "related_algorithms": [
+        "ML-KEM"
+      ],
       "supersedes": [],
-      "source_ids": ["nist:fips-203"],
+      "source_ids": [
+        "nist:fips-203"
+      ],
       "confidence": "high",
       "record_version": 1
     },
@@ -456,9 +740,13 @@
       "published_at": "2024-08-13",
       "effective_from": "2024-08-13",
       "effective_until": null,
-      "related_algorithms": ["ML-DSA"],
+      "related_algorithms": [
+        "ML-DSA"
+      ],
       "supersedes": [],
-      "source_ids": ["nist:fips-204"],
+      "source_ids": [
+        "nist:fips-204"
+      ],
       "confidence": "high",
       "record_version": 1
     },
@@ -471,9 +759,13 @@
       "published_at": "2024-08-13",
       "effective_from": "2024-08-13",
       "effective_until": null,
-      "related_algorithms": ["SLH-DSA"],
+      "related_algorithms": [
+        "SLH-DSA"
+      ],
       "supersedes": [],
-      "source_ids": ["nist:fips-205"],
+      "source_ids": [
+        "nist:fips-205"
+      ],
       "confidence": "high",
       "record_version": 1
     },
@@ -492,12 +784,13 @@
         "SecP384r1MLKEM1024"
       ],
       "supersedes": [],
-      "source_ids": ["ietf:rfc-10024"],
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "confidence": "high",
       "record_version": 1
     }
   ],
-
   "compatibility": [
     {
       "compatibility_id": "compat:tls:x25519mlkem768",
@@ -511,7 +804,9 @@
         "Requires an implementation supporting the specified TLS hybrid group.",
         "Peer interoperability must be validated."
       ],
-      "source_ids": ["ietf:rfc-10024"],
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "effective_from": "2026-08-04",
       "effective_until": null,
       "confidence": "high",
@@ -529,7 +824,9 @@
         "Requires an implementation supporting the specified TLS hybrid group.",
         "Peer interoperability must be validated."
       ],
-      "source_ids": ["ietf:rfc-10024"],
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "effective_from": "2026-08-04",
       "effective_until": null,
       "confidence": "high",
@@ -547,21 +844,24 @@
         "Requires an implementation supporting the specified TLS hybrid group.",
         "Peer interoperability must be validated."
       ],
-      "source_ids": ["ietf:rfc-10024"],
+      "source_ids": [
+        "ietf:rfc-10024"
+      ],
       "effective_from": "2026-08-04",
       "effective_until": null,
       "confidence": "high",
       "record_version": 1
     }
   ],
-
   "migrations": [
     {
       "relationship_id": "migration:rsa:ml-dsa",
       "source_algorithm": "RSA",
       "target_algorithm": "ML-DSA",
       "relationship_type": "replaces",
-      "applicable_purposes": ["digital_signature"],
+      "applicable_purposes": [
+        "digital_signature"
+      ],
       "hybrid": false,
       "prerequisites": [
         "Confirm signature semantics.",
@@ -570,7 +870,9 @@
       "constraints": [
         "Not a replacement for RSA encryption or key establishment."
       ],
-      "source_ids": ["nist:fips-204"],
+      "source_ids": [
+        "nist:fips-204"
+      ],
       "effective_from": "2024-08-13",
       "effective_until": null,
       "confidence": "high",
@@ -581,7 +883,9 @@
       "source_algorithm": "ECDSA",
       "target_algorithm": "ML-DSA",
       "relationship_type": "replaces",
-      "applicable_purposes": ["digital_signature"],
+      "applicable_purposes": [
+        "digital_signature"
+      ],
       "hybrid": false,
       "prerequisites": [
         "Validate signature format.",
@@ -590,7 +894,9 @@
       "constraints": [
         "Certificate and protocol support must be evaluated separately."
       ],
-      "source_ids": ["nist:fips-204"],
+      "source_ids": [
+        "nist:fips-204"
+      ],
       "effective_from": "2024-08-13",
       "effective_until": null,
       "confidence": "high",
@@ -601,7 +907,9 @@
       "source_algorithm": "ECDH",
       "target_algorithm": "ML-KEM",
       "relationship_type": "replaces",
-      "applicable_purposes": ["key_establishment"],
+      "applicable_purposes": [
+        "key_establishment"
+      ],
       "hybrid": false,
       "prerequisites": [
         "Validate protocol support.",
@@ -610,7 +918,9 @@
       "constraints": [
         "Requires a KEM-capable protocol and implementation."
       ],
-      "source_ids": ["nist:fips-203"],
+      "source_ids": [
+        "nist:fips-203"
+      ],
       "effective_from": "2024-08-13",
       "effective_until": null,
       "confidence": "high",
@@ -621,7 +931,9 @@
       "source_algorithm": "Diffie-Hellman",
       "target_algorithm": "ML-KEM",
       "relationship_type": "replaces",
-      "applicable_purposes": ["key_establishment"],
+      "applicable_purposes": [
+        "key_establishment"
+      ],
       "hybrid": false,
       "prerequisites": [
         "Validate protocol support.",
@@ -630,7 +942,9 @@
       "constraints": [
         "Requires a KEM-capable protocol and implementation."
       ],
-      "source_ids": ["nist:fips-203"],
+      "source_ids": [
+        "nist:fips-203"
+      ],
       "effective_from": "2024-08-13",
       "effective_until": null,
       "confidence": "high",
@@ -641,7 +955,9 @@
       "source_algorithm": "RSA",
       "target_algorithm": "ML-KEM",
       "relationship_type": "replaces",
-      "applicable_purposes": ["key_establishment"],
+      "applicable_purposes": [
+        "key_establishment"
+      ],
       "hybrid": false,
       "prerequisites": [
         "Determine the actual RSA purpose."
@@ -649,7 +965,9 @@
       "constraints": [
         "ML-KEM does not replace RSA signatures."
       ],
-      "source_ids": ["nist:fips-203"],
+      "source_ids": [
+        "nist:fips-203"
+      ],
       "effective_from": "2024-08-13",
       "effective_until": null,
       "confidence": "high",

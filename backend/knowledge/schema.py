@@ -107,6 +107,8 @@ class AlgorithmKnowledge:
     quantum_posture: str
     security_strength: SecurityStrength
     key_sizes: Tuple[int, ...]
+    parameters: Tuple[str, ...]
+    components: Tuple[str, ...]
     standards: Tuple[str, ...]
     description: str
     notes: str

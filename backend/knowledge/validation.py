@@ -57,6 +57,11 @@ def validate_algorithm(
             f"{algorithm.knowledge_id}: no provenance"
         )
 
+    if algorithm.primitive == "composite" and not algorithm.components:
+        raise ValueError(
+            f"{algorithm.knowledge_id}: composite algorithm requires components"
+        )
+
 
 def validate_standard(
     standard: StandardKnowledge,
@@ -133,6 +138,35 @@ def validate_registry(
             )
 
         algorithm_ids.add(item.knowledge_id)
+
+        # Composite/hybrid algorithms must reference real algorithm
+        # records, and any declared parameter must belong to at least
+        # one referenced component.
+        for component_id in item.components:
+            if component_id not in algorithm_ids and component_id not in {
+                algorithm.knowledge_id
+                for algorithm in registry.algorithms
+            }:
+                raise ValueError(
+                    f"{item.knowledge_id}: unknown component {component_id}"
+                )
+
+        if item.primitive == "composite" and item.parameters:
+            component_records = {
+                algorithm.knowledge_id: algorithm
+                for algorithm in registry.algorithms
+                if algorithm.knowledge_id in item.components
+            }
+
+            for parameter in item.parameters:
+                if not any(
+                    parameter in component.parameters
+                    for component in component_records.values()
+                ):
+                    raise ValueError(
+                        f"{item.knowledge_id}: unknown component parameter "
+                        f"{parameter}"
+                    )
 
         for source_id in item.source_ids:
             if source_id not in {

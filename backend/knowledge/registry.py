@@ -75,6 +75,8 @@ def _algorithm(item):
             basis=strength.get("basis"),
         ),
         key_sizes=_tuple(item.get("key_sizes")),
+        parameters=_tuple(item.get("parameters")),
+        components=_tuple(item.get("components")),
         standards=_tuple(item.get("standards")),
         description=item["description"],
         notes=item["notes"],
