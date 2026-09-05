@@ -178,6 +178,19 @@ export interface Recommendation {
   priority: string;
   text: string;
   rationale: string;
+  knowledge_version?: string | null;
+  knowledge_hash?: string | null;
+  status?: string | null;
+  matched_by?: string | null;
+  lifecycle_status?: string | null;
+  quantum_posture?: string | null;
+  primitive?: string | null;
+  standards?: string[];
+  candidate_ids?: string[];
+  candidates?: Record<string, unknown>[];
+  compatibility_details?: Record<string, unknown>;
+  conflict_count?: number;
+  explainability?: Record<string, unknown>;
 }
 
 export interface MigrationOption {
@@ -186,6 +199,16 @@ export interface MigrationOption {
   rationale: string | null;
   compatibility: string | null;
   effort: string | null;
+  relationship_id?: string | null;
+  source_algorithm?: string | null;
+  target_algorithm?: string | null;
+  relationship_type?: string | null;
+  hybrid?: boolean;
+  confidence?: string | null;
+  prerequisites?: string[];
+  constraints?: string[];
+  knowledge_version?: string | null;
+  knowledge_hash?: string | null;
 }
 
 export interface VerificationState {

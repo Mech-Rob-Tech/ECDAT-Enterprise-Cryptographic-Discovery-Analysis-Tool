@@ -36,3 +36,4 @@ class ScanState:
     # Original scan summary and metadata
     summary: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    knowledge_snapshot: Dict[str, Any] = field(default_factory=dict)

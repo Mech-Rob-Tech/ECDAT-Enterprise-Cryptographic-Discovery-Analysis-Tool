@@ -17,6 +17,9 @@ def build_scan_state(report: Dict[str, Any]) -> ScanState:
     """
 
     metadata = report.get("metadata", {}) or {}
+    knowledge_snapshot = (
+        report.get("knowledge_snapshot", {}) or {}
+    )
 
     applications = report.get("applications", []) or []
     canonical_artifacts = (
@@ -75,4 +78,5 @@ def build_scan_state(report: Dict[str, Any]) -> ScanState:
             report.get("summary", {}) or {}
         ),
         metadata=metadata,
+        knowledge_snapshot=knowledge_snapshot,
     )

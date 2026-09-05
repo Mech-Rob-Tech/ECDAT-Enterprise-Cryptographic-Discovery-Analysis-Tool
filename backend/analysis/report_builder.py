@@ -3,6 +3,8 @@ from typing import Any, Dict, Optional
 from model.canonical import build_canonical_scan
 from analysis.risk_landscape import build_risk_landscape
 
+from knowledge.service import KnowledgeService
+
 def build_artifact_record(
     artifact: Dict[str, Any],
     mosca_inputs: Optional[Dict[str, Any]] = None,
@@ -26,10 +28,14 @@ def build_report(
     """
     Build the canonical ECDAT report while preserving legacy fields.
     """
+    knowledge_service = KnowledgeService()
+
     canonical_scan = build_canonical_scan(
         scan_results,
         mosca_inputs=mosca_inputs,
     )
+
+    knowledge_snapshot = knowledge_service.snapshot()
     risk_landscape = build_risk_landscape(
         artifacts=canonical_scan.artifacts,
         business_contexts=canonical_scan.business_contexts,
@@ -142,6 +148,19 @@ def build_report(
                 "priority": recommendation.priority,
                 "text": recommendation.text,
                 "rationale": recommendation.rationale,
+                "knowledge_version": recommendation.knowledge_version,
+                "knowledge_hash": recommendation.knowledge_hash,
+                "status": recommendation.status,
+                "matched_by": recommendation.matched_by,
+                "lifecycle_status": recommendation.lifecycle_status,
+                "quantum_posture": recommendation.quantum_posture,
+                "primitive": recommendation.primitive,
+                "standards": list(recommendation.standards),
+                "candidate_ids": list(recommendation.candidate_ids),
+                "candidates": list(recommendation.candidates),
+                "compatibility": dict(recommendation.compatibility),
+                "conflict_count": recommendation.conflict_count,
+                "explainability": dict(recommendation.explainability),
             }
         )
 
@@ -155,6 +174,16 @@ def build_report(
                 "rationale": option.rationale,
                 "compatibility": option.compatibility,
                 "effort": option.effort,
+                "relationship_id": option.relationship_id,
+                "source_algorithm": option.source_algorithm,
+                "target_algorithm": option.target_algorithm,
+                "relationship_type": option.relationship_type,
+                "hybrid": option.hybrid,
+                "confidence": option.confidence,
+                "prerequisites": list(option.prerequisites),
+                "constraints": list(option.constraints),
+                "knowledge_version": option.knowledge_version,
+                "knowledge_hash": option.knowledge_hash,
             }
         )
 
@@ -247,6 +276,9 @@ def build_report(
         )
 
     return {
+        # Knowledge context used for this analytical result.
+        "knowledge_snapshot": knowledge_snapshot,
+
         # Canonical analytical model
         "metadata": {
             "target": canonical_scan.metadata.target,

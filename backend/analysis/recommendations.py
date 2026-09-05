@@ -291,8 +291,18 @@ def build_recommendation(
         else "RESOLVED"
     )
 
+    if status == "CONFLICT":
+        category = "manual_review"
+    elif candidates:
+        category = "migrate"
+    elif knowledge.quantum_posture == "quantum_resistant":
+        category = "monitor"
+    else:
+        category = "manual_review"
+
     return {
         "status": status,
+        "category": category,
         "algorithm": knowledge.name,
         "purpose": purpose,
         "priority": priority,
