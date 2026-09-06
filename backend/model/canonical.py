@@ -2,13 +2,16 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from analysis.mosca import calculate_mosca_risk
-from analysis.recommendations import get_recommendation
+from analysis.recommendations import (
+    build_recommendation as build_knowledge_recommendation,
+)
 from analysis.quantum_risk import assess_quantum_risk
 
 from model.identity import (
     build_artifact_id,
     build_evidence_id,
 )
+
 from model.relationships import (
     build_components,
     build_relationships,
@@ -382,157 +385,109 @@ def build_mosca_assessment(
     )
 
 
-def classify_recommendation(
-    artifact: Dict[str, Any],
-    recommendation_text: str,
-) -> Dict[str, str]:
-    """
-    Classify the existing recommendation into a semantic category.
-
-    This does not rewrite the recommendation text. It only determines
-    how the recommendation should be represented in the canonical model.
-    """
-    algorithm = str(
-        artifact.get(
-            "algorithm",
-            "",
-        )
-    )
-
-    text = recommendation_text.lower()
-
-    if algorithm in {
-        "AES",
-        "SHA-256",
-        "SHA-384",
-        "SHA-512",
-    }:
-        return {
-            "category": "monitor",
-            "priority": "low",
-            "rationale": (
-                "The current recommendation does not require "
-                "an immediate cryptographic migration."
-            ),
-        }
-
-    if algorithm in {
-        "MD5",
-        "SHA-1",
-        "DES",
-    }:
-        return {
-            "category": "replace",
-            "priority": "critical",
-            "rationale": (
-                "The detected algorithm requires replacement "
-                "because of inadequate cryptographic security."
-            ),
-        }
-
-    if algorithm == "ECDSA":
-        return {
-            "category": "migrate",
-            "priority": "high",
-            "rationale": (
-                "ECDSA uses public-key cryptography that is "
-                "vulnerable to sufficiently capable quantum attacks."
-            ),
-        }
-
-    if algorithm in {
-        "ECDH",
-        "Diffie-Hellman",
-    }:
-        return {
-            "category": "migrate",
-            "priority": "high",
-            "rationale": (
-                "The key-establishment mechanism is vulnerable "
-                "to sufficiently capable quantum attacks."
-            ),
-        }
-
-    if algorithm == "RSA":
-        return {
-            "category": "manual_review",
-            "priority": "high",
-            "rationale": (
-                "RSA migration depends on the cryptographic purpose. "
-                "The current finding does not establish whether RSA "
-                "is being used for encryption, key establishment, "
-                "or digital signatures."
-            ),
-        }
-
-    if algorithm == "TLS":
-        return {
-            "category": "inspect",
-            "priority": "medium",
-            "rationale": (
-                "TLS quantum exposure depends on the configured "
-                "authentication and key-establishment algorithms."
-            ),
-        }
-
-    if "replace" in text:
-        return {
-            "category": "replace",
-            "priority": "high",
-            "rationale": (
-                "The recommendation explicitly calls for replacement."
-            ),
-        }
-
-    if "migrat" in text:
-        return {
-            "category": "migrate",
-            "priority": "medium",
-            "rationale": (
-                "The recommendation identifies a migration action."
-            ),
-        }
-
-    return {
-        "category": "manual_review",
-        "priority": "medium",
-        "rationale": (
-            "The recommendation requires further cryptographic review."
-        ),
-    }
 
 
 def build_recommendation(
     artifact: Dict[str, Any],
 ) -> Recommendation:
     """
-    Build a deterministic first-class recommendation.
-    """
-    recommendation_text = str(
-        artifact.get(
-            "recommendation",
-            "Perform manual cryptographic review.",
-        )
-    )
+    Project the structured knowledge-driven recommendation into the
+    canonical model.
 
-    classification = classify_recommendation(
-        artifact,
-        recommendation_text,
-    )
+    Cryptographic decision logic belongs to analysis/knowledge.
+    This layer only preserves the decision and its provenance.
+    """
+    result = build_knowledge_recommendation(artifact)
 
     return Recommendation(
         recommendation_id=stable_id(
             "recommendation",
-            artifact.get(
-                "artifact_id"
-            ),
-            classification["category"],
+            artifact.get("artifact_id"),
+            str(result.get("category", "manual_review")),
         ),
-        category=classification["category"],
-        priority=classification["priority"],
-        text=recommendation_text,
-        rationale=classification["rationale"],
+        category=str(
+            result.get(
+                "category",
+                "manual_review",
+            )
+        ),
+        priority=str(
+            result.get(
+                "priority",
+                "REVIEW",
+            )
+        ).lower(),
+        text=str(
+            result.get(
+                "text",
+                "Perform manual cryptographic review.",
+            )
+        ),
+        rationale=str(
+            result.get(
+                "rationale",
+                "Further cryptographic review is required.",
+            )
+        ),
+        knowledge_version=result.get(
+            "knowledge_version"
+        ),
+        knowledge_hash=result.get(
+            "knowledge_hash"
+        ),
+        status=result.get(
+            "status"
+        ),
+        matched_by=result.get(
+            "matched_by"
+        ),
+        lifecycle_status=result.get(
+            "lifecycle_status"
+        ),
+        quantum_posture=result.get(
+            "quantum_posture"
+        ),
+        primitive=result.get(
+            "primitive"
+        ),
+        standards=list(
+            result.get(
+                "standards",
+                [],
+            )
+        ),
+        candidate_ids=list(
+            result.get(
+                "candidate_ids",
+                [],
+            )
+        ),
+        candidates=list(
+            result.get(
+                "candidates",
+                [],
+            )
+        ),
+        compatibility=dict(
+            result.get(
+                "compatibility",
+                {},
+            )
+        ),
+        conflict_count=int(
+            result.get(
+                "conflict_count",
+                0,
+            )
+        ),
+        explainability=dict(
+            result.get(
+                "explainability",
+                {},
+            )
+        ),
     )
+
 
 
 def build_migration_options(
@@ -540,192 +495,134 @@ def build_migration_options(
     recommendation: Recommendation,
 ) -> List[MigrationOption]:
     """
-    Build only genuine migration/replacement options.
+    Project migration relationships already resolved by the
+    knowledge-driven recommendation engine.
 
-    Advisory recommendations such as AES-256 monitoring do not
-    produce migration options.
+    No cryptographic migration rules belong in the canonical layer.
     """
-    algorithm = str(
-        artifact.get(
-            "algorithm",
-            "",
-        )
-    )
-
-    purpose = str(
-        artifact.get(
-            "purpose",
-            "unknown",
-        )
-    )
-
     options: List[MigrationOption] = []
 
-    def add_option(
-        name: str,
-        rationale: str,
-        compatibility: str,
-        effort: str,
-    ) -> None:
+    for candidate in recommendation.candidates:
+        target = str(
+            candidate.get(
+                "target_algorithm",
+                "",
+            )
+        )
+
+        relationship_type = str(
+            candidate.get(
+                "relationship_type",
+                "alternative_to",
+            )
+        )
+
+        hybrid = bool(
+            candidate.get(
+                "hybrid",
+                False,
+            )
+        )
+
+        confidence = str(
+            candidate.get(
+                "confidence",
+                "unknown",
+            )
+        )
+
+        prerequisites = list(
+            candidate.get(
+                "prerequisites",
+                [],
+            ) or []
+        )
+
+        constraints = list(
+            candidate.get(
+                "constraints",
+                [],
+            ) or []
+        )
+
+        source_algorithm = str(
+            candidate.get(
+                "source_algorithm",
+                artifact.get(
+                    "algorithm",
+                    "",
+                ),
+            )
+        )
+
+        rationale = (
+            f"Knowledge-linked {relationship_type} candidate "
+            f"for {source_algorithm} → {target}."
+        )
+
+        if hybrid:
+            rationale += " This is a hybrid migration mechanism."
+
+        compatibility = (
+            "Requires compatibility assessment."
+        )
+
+        if constraints:
+            compatibility = (
+                "Constraints: "
+                + "; ".join(
+                    str(item)
+                    for item in constraints
+                )
+                + "."
+            )
+
+        if prerequisites:
+            compatibility += (
+                " Prerequisites: "
+                + "; ".join(
+                    str(item)
+                    for item in prerequisites
+                )
+                + "."
+            )
+
+        effort = {
+            "high": "High",
+            "medium": "Medium",
+            "low": "Low",
+        }.get(
+            confidence.lower(),
+            "Medium",
+        )
+
         options.append(
             MigrationOption(
                 option_id=stable_id(
                     "migration",
-                    artifact.get(
-                        "artifact_id"
-                    ),
-                    name,
+                    artifact.get("artifact_id"),
+                    candidate.get("relationship_id"),
                 ),
-                name=name,
+                name=target,
                 rationale=rationale,
                 compatibility=compatibility,
                 effort=effort,
+                relationship_id=candidate.get(
+                    "relationship_id"
+                ),
+                source_algorithm=source_algorithm,
+                target_algorithm=target,
+                relationship_type=relationship_type,
+                hybrid=hybrid,
+                confidence=confidence,
+                prerequisites=prerequisites,
+                constraints=constraints,
+                knowledge_version=recommendation.knowledge_version,
+                knowledge_hash=recommendation.knowledge_hash,
             )
-        )
-
-    if algorithm == "ECDSA":
-        add_option(
-            "ML-DSA",
-            "Post-quantum digital-signature migration candidate.",
-            "Requires application and protocol compatibility assessment.",
-            "Medium",
-        )
-
-        add_option(
-            "SLH-DSA",
-            "Hash-based post-quantum digital-signature alternative.",
-            "Requires application and protocol compatibility assessment.",
-            "Medium",
-        )
-
-        add_option(
-            "Hybrid digital signature",
-            "Provides a transition path combining classical and post-quantum mechanisms.",
-            "Depends on protocol and implementation support.",
-            "High",
-        )
-
-    elif algorithm in {
-        "ECDH",
-        "Diffie-Hellman",
-    }:
-        add_option(
-            "ML-KEM",
-            "Post-quantum key-establishment migration candidate.",
-            "Requires protocol and implementation compatibility assessment.",
-            "Medium",
-        )
-
-        add_option(
-            "Hybrid key establishment",
-            "Combines classical and post-quantum key-establishment mechanisms during transition.",
-            "Depends on protocol and implementation support.",
-            "High",
-        )
-
-    elif algorithm == "RSA":
-        if purpose in {
-            "encryption",
-            "key_establishment",
-        }:
-            add_option(
-                "ML-KEM",
-                "Post-quantum key-establishment or encryption migration candidate.",
-                "Requires workflow and protocol compatibility assessment.",
-                "Medium",
-            )
-
-            add_option(
-                "Hybrid key establishment",
-                "Transition path combining classical RSA-based protection with a post-quantum mechanism.",
-                "Requires protocol and implementation support.",
-                "High",
-            )
-
-        elif purpose == "digital_signature":
-            add_option(
-                "ML-DSA",
-                "Post-quantum digital-signature migration candidate.",
-                "Requires application and protocol compatibility assessment.",
-                "Medium",
-            )
-
-            add_option(
-                "SLH-DSA",
-                "Hash-based post-quantum digital-signature alternative.",
-                "Requires application and protocol compatibility assessment.",
-                "Medium",
-            )
-
-            add_option(
-                "Hybrid digital signature",
-                "Transition path combining classical and post-quantum signatures.",
-                "Depends on protocol and implementation support.",
-                "High",
-            )
-
-    elif algorithm == "MD5":
-        add_option(
-            "Modern approved hash",
-            "Replace MD5 with an approved modern hash construction appropriate to the use case.",
-            "Usually high, subject to application-specific compatibility testing.",
-            "Low",
-        )
-
-    elif algorithm == "SHA-1":
-        add_option(
-            "SHA-256",
-            "Modern replacement for SHA-1 in security-sensitive applications.",
-            "Generally high, subject to use-case validation.",
-            "Low",
-        )
-
-        add_option(
-            "SHA-384 / SHA-512",
-            "Alternative approved modern hash constructions.",
-            "Generally high, subject to use-case validation.",
-            "Low",
-        )
-
-    elif algorithm == "DES":
-        add_option(
-            "AES",
-            "Modern symmetric-cipher replacement for DES or legacy 3DES.",
-            "Requires mode, key-size, and protocol compatibility testing.",
-            "Medium",
-        )
-
-    elif algorithm == "TLS":
-        add_option(
-            "PQC / hybrid TLS",
-            "Migration candidate when TLS uses quantum-vulnerable public-key authentication or key establishment.",
-            "Depends on TLS implementation, protocol, certificate, and endpoint support.",
-            "High",
         )
 
     return options
-
-
-def build_verification_state(
-    artifact_id: str,
-) -> VerificationState:
-    """
-    Create the initial verification state for an artifact.
-    """
-    return VerificationState(
-        verification_id=stable_id(
-            "verification",
-            artifact_id,
-        ),
-        status="not_verified",
-        artifact_id=artifact_id,
-        verified_at=None,
-        notes=(
-            "Verification requires a subsequent scan after "
-            "migration or remediation."
-        ),
-    )
-
 
 def build_canonical_artifact_id(
     artifact: Dict[str, Any],
@@ -792,6 +689,7 @@ def build_canonical_artifact_id(
         details=details,
         semantic_signature=semantic_signature,
     )
+
 
 def build_canonical_artifact(
     artifact: Dict[str, Any],
@@ -862,6 +760,27 @@ def build_canonical_artifact(
                 "details",
                 {},
             )
+        ),
+    )
+
+
+def build_verification_state(
+    artifact_id: str,
+) -> VerificationState:
+    """
+    Create the initial verification state for an artifact.
+    """
+    return VerificationState(
+        verification_id=stable_id(
+            "verification",
+            artifact_id,
+        ),
+        status="not_verified",
+        artifact_id=artifact_id,
+        verified_at=None,
+        notes=(
+            "Verification requires a subsequent scan after "
+            "migration or remediation."
         ),
     )
 

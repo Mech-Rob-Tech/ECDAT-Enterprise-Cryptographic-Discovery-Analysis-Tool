@@ -95,6 +95,19 @@ class Recommendation:
     priority: str
     text: str
     rationale: str
+    knowledge_version: Optional[str] = None
+    knowledge_hash: Optional[str] = None
+    status: Optional[str] = None
+    matched_by: Optional[str] = None
+    lifecycle_status: Optional[str] = None
+    quantum_posture: Optional[str] = None
+    primitive: Optional[str] = None
+    standards: List[str] = field(default_factory=list)
+    candidate_ids: List[str] = field(default_factory=list)
+    candidates: List[Dict[str, Any]] = field(default_factory=list)
+    compatibility: Dict[str, Any] = field(default_factory=dict)
+    conflict_count: int = 0
+    explainability: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -104,6 +117,16 @@ class MigrationOption:
     rationale: str
     compatibility: str
     effort: str
+    relationship_id: Optional[str] = None
+    source_algorithm: Optional[str] = None
+    target_algorithm: Optional[str] = None
+    relationship_type: Optional[str] = None
+    hybrid: bool = False
+    confidence: Optional[str] = None
+    prerequisites: List[str] = field(default_factory=list)
+    constraints: List[str] = field(default_factory=list)
+    knowledge_version: Optional[str] = None
+    knowledge_hash: Optional[str] = None
 
 
 @dataclass
@@ -178,9 +201,25 @@ class CryptoArtifact:
 
 
 @dataclass
+class KnowledgeSnapshot:
+    """
+    Immutable knowledge context used to produce an ECDAT analysis.
+
+    The version and integrity hash identify the exact knowledge
+    registry state used by the analysis.
+    """
+
+    knowledge_version: str
+    knowledge_hash: str
+    generated_at: Optional[str] = None
+
+
+@dataclass
 class ECDATScan:
     metadata: ScanMetadata
     summary: ScanSummary
+
+    knowledge_snapshot: Optional[KnowledgeSnapshot] = None
 
     applications: List[Application] = field(default_factory=list)
     components: List[Component] = field(default_factory=list)

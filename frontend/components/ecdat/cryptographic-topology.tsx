@@ -936,11 +936,6 @@ export function CryptographicTopology({
       ? investigation.nodes
       : inventoryNodes;
 
-  const activeEdges =
-    selectedArtifactId
-      ? investigation.edges
-      : [];
-
   const initialNodes =
     useMemo(
       () =>
@@ -954,9 +949,14 @@ export function CryptographicTopology({
     useMemo(
       () =>
         toReactFlowEdges(
-          activeEdges,
+          selectedArtifactId
+            ? investigation.edges
+            : [],
         ),
-      [activeEdges],
+      [
+        selectedArtifactId,
+        investigation.edges,
+      ],
     );
 
   const [

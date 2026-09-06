@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSessionStorageValue } from "@/lib/session-storage";
 import { useRouter } from "next/navigation";
 
 type Artifact = {
@@ -43,9 +44,19 @@ type ScanResult = {
 
 export default function ReportsPage() {
   const router = useRouter();
+  const stored = useSessionStorageValue("ecdat_scan_result");
 
-  const [result, setResult] =
-    useState<ScanResult | null>(null);
+  const result = useMemo<ScanResult | null>(() => {
+    if (!stored) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(stored) as ScanResult;
+    } catch {
+      return null;
+    }
+  }, [stored]);
 
   const [exporting, setExporting] =
     useState<"json" | "pdf" | null>(null);
@@ -54,22 +65,17 @@ export default function ReportsPage() {
     useState<string | null>(null);
 
   useEffect(() => {
-    const stored =
-      sessionStorage.getItem(
-        "ecdat_scan_result"
-      );
-
-    if (!stored) {
-      router.replace("/import");
+    if (stored === null) {
+      if (!sessionStorage.getItem("ecdat_scan_result")) {
+        router.replace("/import");
+      }
       return;
     }
 
-    try {
-      setResult(JSON.parse(stored));
-    } catch {
+    if (!result) {
       router.replace("/import");
     }
-  }, [router]);
+  }, [result, router, stored]);
 
   const stats = useMemo(() => {
     if (!result) {

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSessionStorageValue } from "@/lib/session-storage";
 
 type BusinessCriticality = "Low" | "Medium" | "High" | "Critical";
 
@@ -85,57 +86,65 @@ function riskClasses(level: string) {
 
 export default function MoscaPage() {
   const router = useRouter();
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const stored = useSessionStorageValue("ecdat_scan_result");
 
-  const [dataLifetime, setDataLifetime] = useState(12);
-  const [migrationTime, setMigrationTime] = useState(4);
-  const [quantumHorizon, setQuantumHorizon] = useState(10);
-  const [businessCriticality, setBusinessCriticality] =
-    useState<BusinessCriticality>("Critical");
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem("ecdat_scan_result");
-
+  const scanResult = useMemo<ScanResult | null>(() => {
     if (!stored) {
-      router.replace("/import");
-      return;
+      return null;
     }
 
     try {
-      const data: ScanResult = JSON.parse(stored);
-
-      setScanResult(data);
-
-      const inputs = data.mosca_inputs;
-
-      if (!inputs) {
-        return;
-      }
-
-      if (typeof inputs.data_lifetime === "number") {
-        setDataLifetime(inputs.data_lifetime);
-      }
-
-      if (typeof inputs.migration_time === "number") {
-        setMigrationTime(inputs.migration_time);
-      }
-
-      if (typeof inputs.quantum_horizon === "number") {
-        setQuantumHorizon(inputs.quantum_horizon);
-      }
-
-      if (
-        inputs.business_criticality === "Low" ||
-        inputs.business_criticality === "Medium" ||
-        inputs.business_criticality === "High" ||
-        inputs.business_criticality === "Critical"
-      ) {
-        setBusinessCriticality(inputs.business_criticality);
-      }
+      return JSON.parse(stored) as ScanResult;
     } catch {
+      return null;
+    }
+  }, [stored]);
+
+  const inputs = scanResult?.mosca_inputs;
+
+  const [dataLifetimeOverride, setDataLifetimeOverride] =
+    useState<number | null>(null);
+  const [migrationTimeOverride, setMigrationTimeOverride] =
+    useState<number | null>(null);
+  const [quantumHorizonOverride, setQuantumHorizonOverride] =
+    useState<number | null>(null);
+  const [businessCriticalityOverride, setBusinessCriticalityOverride] =
+    useState<BusinessCriticality | null>(null);
+
+  const dataLifetime =
+    dataLifetimeOverride ??
+    (typeof inputs?.data_lifetime === "number"
+      ? inputs.data_lifetime
+      : 12);
+
+  const migrationTime =
+    migrationTimeOverride ??
+    (typeof inputs?.migration_time === "number"
+      ? inputs.migration_time
+      : 4);
+
+  const quantumHorizon =
+    quantumHorizonOverride ??
+    (typeof inputs?.quantum_horizon === "number"
+      ? inputs.quantum_horizon
+      : 10);
+
+  const businessCriticality =
+    businessCriticalityOverride ??
+    (inputs?.business_criticality ?? "Critical");
+
+  useEffect(() => {
+    if (stored === null) {
+      if (!sessionStorage.getItem("ecdat_scan_result")) {
+        router.replace("/import");
+      }
+      return;
+    }
+
+    if (!scanResult) {
       router.replace("/import");
     }
-  }, [router]);
+  }, [router, scanResult, stored]);
 
   const total = dataLifetime + migrationTime;
 
@@ -272,7 +281,7 @@ export default function MoscaPage() {
                 max="50"
                 value={dataLifetime}
                 onChange={(event) =>
-                  setDataLifetime(Number(event.target.value))
+                  setDataLifetimeOverride(Number(event.target.value))
                 }
                 className="mt-4 w-full accent-[var(--primary)]"
               />
@@ -301,7 +310,7 @@ export default function MoscaPage() {
                 max="30"
                 value={migrationTime}
                 onChange={(event) =>
-                  setMigrationTime(Number(event.target.value))
+                  setMigrationTimeOverride(Number(event.target.value))
                 }
                 className="mt-4 w-full accent-[var(--primary)]"
               />
@@ -330,7 +339,7 @@ export default function MoscaPage() {
                 max="50"
                 value={quantumHorizon}
                 onChange={(event) =>
-                  setQuantumHorizon(Number(event.target.value))
+                  setQuantumHorizonOverride(Number(event.target.value))
                 }
                 className="mt-4 w-full accent-[var(--primary)]"
               />
@@ -365,7 +374,7 @@ export default function MoscaPage() {
                       key={level}
                       type="button"
                       onClick={() =>
-                        setBusinessCriticality(level)
+                        setBusinessCriticalityOverride(level)
                       }
                       className={`border px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] transition ${
                         selected

@@ -1,22 +1,3 @@
-const navigation = [
-  {
-    label: "DISCOVER",
-    items: ["Overview", "Inventory"],
-  },
-  {
-    label: "ASSESS",
-    items: ["Quantum", "Mosca"],
-  },
-  {
-    label: "PLAN",
-    items: ["Migration"],
-  },
-  {
-    label: "REPORT",
-    items: ["Reports"],
-  },
-];
-
 export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">

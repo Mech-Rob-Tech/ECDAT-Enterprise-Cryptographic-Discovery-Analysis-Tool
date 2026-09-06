@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSessionStorageValue } from "@/lib/session-storage";
 import { useRouter } from "next/navigation";
 
 type Artifact = {
@@ -30,25 +31,37 @@ type Filter = "ALL" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 export default function ArtifactsPage() {
   const router = useRouter();
-  const [result, setResult] = useState<ScanResult | null>(null);
+  const stored = useSessionStorageValue("ecdat_scan_result");
+
+  const result = useMemo<ScanResult | null>(() => {
+    if (!stored) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(stored) as ScanResult;
+    } catch {
+      return null;
+    }
+  }, [stored]);
+
   const [filter, setFilter] = useState<Filter>("ALL");
   const [search, setSearch] = useState("");
 
-useEffect(() => {
-  const stored = sessionStorage.getItem("ecdat_scan_result");
+  useEffect(() => {
+    if (stored === null) {
+      if (!sessionStorage.getItem("ecdat_scan_result")) {
+        router.replace("/import");
+      }
+      return;
+    }
 
-  if (!stored) {
-    router.replace("/import");
-    return;
-  }
+    if (!result) {
+      router.replace("/import");
+    }
+  }, [result, router, stored]);
 
-  try {
-    setResult(JSON.parse(stored));
-  } catch {
-    router.replace("/import");
-  }
-}, [router]);
-  const artifacts = result?.artifacts ?? [];
+  const artifacts = useMemo(() => result?.artifacts ?? [], [result]);
 
   const filteredArtifacts = useMemo(() => {
     const query = search.trim().toLowerCase();
