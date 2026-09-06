@@ -87,6 +87,8 @@ class KnowledgeService:
         target_type: Optional[str] = None,
         target_name: Optional[str] = None,
         target_version: Optional[str] = None,
+        protocol: Optional[str] = None,
+        protocol_version: Optional[str] = None,
     ) -> KnowledgeResolution:
         return resolve_algorithm(
             registry=self.registry,
@@ -96,6 +98,8 @@ class KnowledgeService:
             target_type=target_type,
             target_name=target_name,
             target_version=target_version,
+            protocol=protocol,
+            protocol_version=protocol_version,
         )
 
     def algorithms(self):
@@ -106,6 +110,9 @@ class KnowledgeService:
 
     def migrations(self):
         return self.registry.migrations
+
+    def protocols(self):
+        return self.registry.protocols
 
     def compatibility(self):
         return self.registry.compatibility

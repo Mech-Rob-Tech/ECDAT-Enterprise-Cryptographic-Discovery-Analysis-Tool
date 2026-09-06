@@ -12,10 +12,12 @@ from knowledge.schema import (
     KnowledgeProvenance,
     KnowledgeRegistry,
     MigrationRelationship,
+    ProtocolApplicability,
     SecurityStrength,
     StandardKnowledge,
 )
 from knowledge.validation import validate_registry
+from knowledge.conflicts import detect_algorithm_conflicts
 
 
 DATA_PATH = (
@@ -43,6 +45,9 @@ def _provenance(data):
             source_id=item["source_id"],
             source_type=item["source_type"],
             authority=item["authority"],
+            authority_rank=int(
+                item.get("authority_rank", 0)
+            ),
             title=item["title"],
             uri=item["uri"],
             published_at=item.get("published_at"),
@@ -130,6 +135,32 @@ def _compatibility(item):
         effective_from=item.get("effective_from"),
         effective_until=item.get("effective_until"),
         confidence=item["confidence"],
+        interoperability=_tuple(
+            item.get("interoperability")
+        ),
+        record_version=item.get("record_version", 1),
+    )
+
+
+def _protocol(item):
+    return ProtocolApplicability(
+        applicability_id=item["applicability_id"],
+        algorithm=item["algorithm"],
+        protocol=item["protocol"],
+        protocol_version=item.get("protocol_version"),
+        usage=item.get("usage", "unknown"),
+        status=item["status"],
+        recommended=item.get("recommended"),
+        dtls_ok=item.get("dtls_ok"),
+        constraints=_tuple(
+            item.get("constraints")
+        ),
+        source_ids=_tuple(
+            item.get("source_ids")
+        ),
+        effective_from=item.get("effective_from"),
+        effective_until=item.get("effective_until"),
+        confidence=item["confidence"],
         record_version=item.get("record_version", 1),
     )
 
@@ -195,9 +226,20 @@ def load_registry() -> KnowledgeRegistry:
         for item in raw.get("compatibility", [])
     )
 
+    protocols = tuple(
+        _protocol(item)
+        for item in raw.get("protocols", [])
+    )
+
     migrations = tuple(
         _migration(item)
         for item in raw.get("migrations", [])
+    )
+
+    detected_conflicts = tuple(
+        detect_algorithm_conflicts(
+            algorithms
+        )
     )
 
     registry_hash = _canonical_hash(raw)
@@ -212,6 +254,7 @@ def load_registry() -> KnowledgeRegistry:
         standard_count=len(standards),
         compatibility_count=len(compatibility),
         migration_count=len(migrations),
+        conflict_count=len(detected_conflicts),
     )
 
     registry = KnowledgeRegistry(
@@ -219,9 +262,10 @@ def load_registry() -> KnowledgeRegistry:
         algorithms=algorithms,
         standards=standards,
         compatibility=compatibility,
+        protocols=protocols,
         migrations=migrations,
         provenance=provenance,
-        conflicts=(),
+        conflicts=detected_conflicts,
     )
 
     validate_registry(registry)

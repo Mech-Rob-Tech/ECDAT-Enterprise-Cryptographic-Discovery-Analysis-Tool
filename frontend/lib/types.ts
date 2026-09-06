@@ -188,9 +188,15 @@ export interface Recommendation {
   standards?: string[];
   candidate_ids?: string[];
   candidates?: Record<string, unknown>[];
-  compatibility_details?: Record<string, unknown>;
+  compatibility?: Record<string, unknown>;
   conflict_count?: number;
   explainability?: Record<string, unknown>;
+  primary_candidate?: {
+    relationship_id?: string | null;
+    target_algorithm?: string | null;
+    score?: number | null;
+    decision?: string | null;
+  } | null;
 }
 
 export interface MigrationOption {

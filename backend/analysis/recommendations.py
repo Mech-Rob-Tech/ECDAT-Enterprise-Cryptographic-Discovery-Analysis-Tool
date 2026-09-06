@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from knowledge.service import KnowledgeService
+from analysis.candidate_scoring import rank_candidates
 
 
 SERVICE = KnowledgeService()
@@ -230,11 +231,18 @@ def build_recommendation(
 
     algorithm = _artifact_algorithm(artifact)
     purpose = _artifact_purpose(artifact)
+    protocol = (
+        artifact.get("protocol")
+        or artifact.get("protocol_name")
+    )
+    protocol_version = artifact.get("protocol_version")
 
     resolution = service.resolve(
         algorithm,
         purpose=purpose,
         as_of=as_of,
+        protocol=protocol,
+        protocol_version=protocol_version,
     )
 
     if resolution.algorithm is None:
@@ -267,9 +275,83 @@ def build_recommendation(
         knowledge.lifecycle_status,
     )
 
-    candidates = list(
-        resolution.migrations
+    if resolution.contextual_candidates:
+        raw_candidates = [
+            {
+                "relationship_id": (
+                    candidate.relationship.relationship_id
+                ),
+                "source_algorithm": (
+                    candidate.relationship.source_algorithm
+                ),
+                "target_algorithm": (
+                    candidate.target_algorithm.name
+                ),
+                "relationship_type": (
+                    candidate.relationship.relationship_type
+                ),
+                "hybrid": (
+                    candidate.target_algorithm.primitive
+                    == "composite"
+                ),
+                "confidence": (
+                    candidate.relationship.confidence
+                ),
+                "applicable_purposes": list(
+                    candidate.relationship.applicable_purposes
+                ),
+                "prerequisites": list(
+                    candidate.relationship.prerequisites
+                ),
+                "constraints": [
+                    *candidate.relationship.constraints,
+                    *[
+                        constraint
+                        for record
+                        in candidate.protocol_applicability
+                        for constraint
+                        in record.constraints
+                    ],
+                ],
+            }
+            for candidate
+            in resolution.contextual_candidates
+        ]
+    else:
+        raw_candidates = [
+            {
+                "relationship_id": candidate.relationship_id,
+                "source_algorithm": candidate.source_algorithm,
+                "target_algorithm": candidate.target_algorithm,
+                "relationship_type": candidate.relationship_type,
+                "hybrid": candidate.hybrid,
+                "confidence": candidate.confidence,
+                "applicable_purposes": list(
+                    getattr(
+                        candidate,
+                        "applicable_purposes",
+                        [],
+                    )
+                    or []
+                ),
+                "prerequisites": list(
+                    candidate.prerequisites
+                ),
+                "constraints": list(
+                    candidate.constraints
+                ),
+            }
+            for candidate in resolution.migrations
+        ]
+
+    ranked_candidates = rank_candidates(
+        raw_candidates,
+        artifact=artifact,
+        standards=service.standards(),
+        protocols=service.protocols(),
     )
+
+    candidates = ranked_candidates
 
     compatibility_states = [
         item.status
@@ -300,6 +382,48 @@ def build_recommendation(
     else:
         category = "manual_review"
 
+    primary_candidate = (
+        candidates[0]
+        if candidates
+        else None
+    )
+
+    explainability = dict(
+        resolution.explainability or {}
+    )
+
+    if primary_candidate is not None:
+        explainability.update(
+            {
+                "selection": {
+                    "target_algorithm": primary_candidate.get(
+                        "target_algorithm"
+                    ),
+                    "relationship_id": primary_candidate.get(
+                        "relationship_id"
+                    ),
+                    "score": primary_candidate.get(
+                        "score"
+                    ),
+                    "decision": primary_candidate.get(
+                        "decision"
+                    ),
+                    "reasons": list(
+                        primary_candidate.get(
+                            "reasons",
+                            [],
+                        )
+                    ),
+                    "penalties": list(
+                        primary_candidate.get(
+                            "penalties",
+                            [],
+                        )
+                    ),
+                }
+            }
+        )
+
     return {
         "status": status,
         "category": category,
@@ -322,22 +446,77 @@ def build_recommendation(
             knowledge.standards
         ),
         "candidate_count": len(candidates),
+        "primary_candidate": (
+            {
+                "relationship_id": primary_candidate.get(
+                    "relationship_id"
+                ),
+                "target_algorithm": primary_candidate.get(
+                    "target_algorithm"
+                ),
+                "score": primary_candidate.get(
+                    "score"
+                ),
+                "decision": primary_candidate.get(
+                    "decision"
+                ),
+            }
+            if primary_candidate is not None
+            else None
+        ),
         "candidate_ids": [
-            candidate.relationship_id
+            candidate.get("relationship_id")
             for candidate in candidates
         ],
         "candidates": [
             {
-                "relationship_id": candidate.relationship_id,
-                "target_algorithm": candidate.target_algorithm,
-                "relationship_type": candidate.relationship_type,
-                "hybrid": candidate.hybrid,
-                "confidence": candidate.confidence,
+                "relationship_id": candidate.get(
+                    "relationship_id"
+                ),
+                "target_algorithm": candidate.get(
+                    "target_algorithm"
+                ),
+                "relationship_type": candidate.get(
+                    "relationship_type"
+                ),
+                "hybrid": bool(
+                    candidate.get(
+                        "hybrid",
+                        False,
+                    )
+                ),
+                "confidence": candidate.get(
+                    "confidence"
+                ),
+                "score": candidate.get(
+                    "score"
+                ),
+                "decision": candidate.get(
+                    "decision"
+                ),
+                "reasons": list(
+                    candidate.get(
+                        "reasons",
+                        [],
+                    )
+                ),
+                "penalties": list(
+                    candidate.get(
+                        "penalties",
+                        [],
+                    )
+                ),
                 "prerequisites": list(
-                    candidate.prerequisites
+                    candidate.get(
+                        "prerequisites",
+                        [],
+                    )
                 ),
                 "constraints": list(
-                    candidate.constraints
+                    candidate.get(
+                        "constraints",
+                        [],
+                    )
                 ),
             }
             for candidate in candidates
@@ -351,7 +530,7 @@ def build_recommendation(
         "conflict_count": len(
             resolution.conflicts
         ),
-        "explainability": resolution.explainability,
+        "explainability": explainability,
     }
 
 

@@ -74,6 +74,19 @@ def applicable_constraints(
     return result
 
 
+def interoperability_constraints(
+    constraints: Iterable[CompatibilityConstraint],
+) -> List[str]:
+    values = []
+
+    for constraint in constraints:
+        for item in constraint.interoperability:
+            if item not in values:
+                values.append(item)
+
+    return values
+
+
 def compatibility_status(
     constraints: Iterable[CompatibilityConstraint],
 ) -> str:

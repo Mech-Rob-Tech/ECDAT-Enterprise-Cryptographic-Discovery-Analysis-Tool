@@ -22,6 +22,7 @@ def provenance_hash(provenance: KnowledgeProvenance) -> str:
         "source_id": provenance.source_id,
         "source_type": provenance.source_type,
         "authority": provenance.authority,
+        "authority_rank": provenance.authority_rank,
         "title": provenance.title,
         "uri": provenance.uri,
         "published_at": provenance.published_at,

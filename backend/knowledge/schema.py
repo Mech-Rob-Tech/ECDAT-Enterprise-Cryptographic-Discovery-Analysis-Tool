@@ -73,12 +73,41 @@ VALID_COMPATIBILITY_STATUS = {
     "unknown",
 }
 
+VALID_TARGET_TYPES = {
+    "library",
+    "provider",
+    "implementation",
+    "protocol",
+    "runtime",
+    "platform",
+    "service",
+    "unknown",
+}
+
+VALID_PROTOCOL_STATUSES = {
+    "supported",
+    "conditional",
+    "unsupported",
+    "unknown",
+}
+
+VALID_SOURCE_TYPES = {
+    "standard",
+    "specification",
+    "official_documentation",
+    "research",
+    "vendor",
+    "secondary",
+    "unknown",
+}
+
 
 @dataclass(frozen=True)
 class KnowledgeProvenance:
     source_id: str
     source_type: str
     authority: str
+    authority_rank: int
     title: str
     uri: str
     published_at: Optional[str] = None
@@ -150,6 +179,25 @@ class CompatibilityConstraint:
     effective_from: Optional[str]
     effective_until: Optional[str]
     confidence: str
+    interoperability: Tuple[str, ...] = ()
+    record_version: int = 1
+
+
+@dataclass(frozen=True)
+class ProtocolApplicability:
+    applicability_id: str
+    algorithm: str
+    protocol: str
+    protocol_version: Optional[str]
+    usage: str
+    status: str
+    recommended: Optional[bool]
+    dtls_ok: Optional[bool]
+    constraints: Tuple[str, ...]
+    source_ids: Tuple[str, ...]
+    effective_from: Optional[str]
+    effective_until: Optional[str]
+    confidence: str
     record_version: int = 1
 
 
@@ -168,6 +216,23 @@ class MigrationRelationship:
     effective_until: Optional[str]
     confidence: str
     record_version: int = 1
+
+
+@dataclass(frozen=True)
+class ResolvedCandidate:
+    """
+    Runtime contextualization of a generic migration relationship.
+
+    This is not a registry record. It represents how a generic
+    migration relationship resolves to a concrete algorithm under
+    protocol/context evidence.
+    """
+
+    relationship: MigrationRelationship
+    target_algorithm: AlgorithmKnowledge
+    protocol_applicability: Tuple[
+        ProtocolApplicability, ...
+    ] = ()
 
 
 @dataclass(frozen=True)
@@ -193,6 +258,7 @@ class KnowledgeManifest:
     standard_count: int
     compatibility_count: int
     migration_count: int
+    conflict_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -201,6 +267,7 @@ class KnowledgeRegistry:
     algorithms: Tuple[AlgorithmKnowledge, ...] = field(default_factory=tuple)
     standards: Tuple[StandardKnowledge, ...] = field(default_factory=tuple)
     compatibility: Tuple[CompatibilityConstraint, ...] = field(default_factory=tuple)
+    protocols: Tuple[ProtocolApplicability, ...] = field(default_factory=tuple)
     migrations: Tuple[MigrationRelationship, ...] = field(default_factory=tuple)
     provenance: Tuple[KnowledgeProvenance, ...] = field(default_factory=tuple)
     conflicts: Tuple[KnowledgeConflict, ...] = field(default_factory=tuple)
@@ -219,6 +286,7 @@ class KnowledgeResolution:
     current: bool
     knowledge_version: str
     explainability: Dict[str, Any]
+    contextual_candidates: Tuple[ResolvedCandidate, ...] = ()
 
 
 def dataclass_to_dict(value: Any) -> Any:
