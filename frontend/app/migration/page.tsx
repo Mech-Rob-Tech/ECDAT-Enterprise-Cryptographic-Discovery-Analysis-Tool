@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useSessionStorageValue } from "@/lib/session-storage";
 import { useRouter } from "next/navigation";
 
 type Artifact = {
@@ -110,24 +111,34 @@ function priorityClasses(priority: Priority) {
 
 export default function MigrationPage() {
   const router = useRouter();
-  const [result, setResult] = useState<ScanResult | null>(null);
+  const stored = useSessionStorageValue("ecdat_scan_result");
 
-useEffect(() => {
-  const stored = sessionStorage.getItem("ecdat_scan_result");
+  const result = useMemo<ScanResult | null>(() => {
+    if (!stored) {
+      return null;
+    }
 
-  if (!stored) {
-    router.replace("/import");
-    return;
-  }
+    try {
+      return JSON.parse(stored) as ScanResult;
+    } catch {
+      return null;
+    }
+  }, [stored]);
 
-  try {
-    setResult(JSON.parse(stored));
-  } catch {
-    router.replace("/import");
-  }
-}, [router]);
+  useEffect(() => {
+    if (stored === null) {
+      if (!sessionStorage.getItem("ecdat_scan_result")) {
+        router.replace("/import");
+      }
+      return;
+    }
 
-  const artifacts = result?.artifacts ?? [];
+    if (!result) {
+      router.replace("/import");
+    }
+  }, [result, router, stored]);
+
+  const artifacts = useMemo(() => result?.artifacts ?? [], [result]);
 
   const prioritized = useMemo(() => {
     return artifacts

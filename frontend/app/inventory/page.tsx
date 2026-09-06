@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useSessionStorageValue } from "@/lib/session-storage";
 import { useRouter } from "next/navigation";
 
 type Artifact = {
@@ -34,24 +35,34 @@ type ScanResult = {
 
 export default function InventoryPage() {
   const router = useRouter();
-  const [result, setResult] = useState<ScanResult | null>(null);
-  
-useEffect(() => {
-  const stored = sessionStorage.getItem("ecdat_scan_result");
+  const stored = useSessionStorageValue("ecdat_scan_result");
 
-  if (!stored) {
-    router.replace("/import");
-    return;
-  }
+  const result = useMemo<ScanResult | null>(() => {
+    if (!stored) {
+      return null;
+    }
 
-  try {
-    setResult(JSON.parse(stored));
-  } catch {
-    router.replace("/import");
-  }
-}, [router]);
+    try {
+      return JSON.parse(stored) as ScanResult;
+    } catch {
+      return null;
+    }
+  }, [stored]);
 
-  const artifacts = result?.artifacts ?? [];
+  useEffect(() => {
+    if (stored === null) {
+      if (!sessionStorage.getItem("ecdat_scan_result")) {
+        router.replace("/import");
+      }
+      return;
+    }
+
+    if (!result) {
+      router.replace("/import");
+    }
+  }, [result, router, stored]);
+
+  const artifacts = useMemo(() => result?.artifacts ?? [], [result]);
 
   const algorithms = useMemo(() => {
     const map = new Map<
