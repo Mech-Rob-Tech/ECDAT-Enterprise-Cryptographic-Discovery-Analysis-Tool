@@ -1,4 +1,3 @@
-````markdown
 # ECDAT
 
 ## Enterprise Cryptographic Discovery & Analysis Tool
@@ -1176,5 +1175,4 @@ Continuous Cryptographic Assurance
 **National Technical Research Organisation (NTRO)**
 **Blockchain & Cybersecurity**
 
-```
 ```
