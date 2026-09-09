@@ -13,6 +13,7 @@ type Artifact = {
   file: string;
   line: number;
   evidence: string;
+  security_risk?: string | null;
   quantum_risk: string;
   risk_reason: string;
   recommendation: string;
@@ -42,6 +43,178 @@ type ScanResult = {
   artifacts: Artifact[];
 };
 
+function normalizeReportsScanResult(raw: unknown): ScanResult {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Invalid scan result");
+  }
+
+  const data = raw as Record<string, unknown>;
+  const summary =
+    data.summary && typeof data.summary === "object"
+      ? (data.summary as Record<string, unknown>)
+      : {};
+
+  const risk =
+    summary.security_risk_summary &&
+    typeof summary.security_risk_summary === "object"
+      ? (summary.security_risk_summary as Record<string, unknown>)
+      : {};
+
+  const legacyRisk =
+    data.risk_summary &&
+    typeof data.risk_summary === "object"
+      ? (data.risk_summary as Record<string, unknown>)
+      : {};
+
+  const numberValue = (
+    value: unknown,
+    fallback = 0,
+  ): number =>
+    typeof value === "number" && Number.isFinite(value)
+      ? value
+      : fallback;
+
+  const rawArtifacts =
+    Array.isArray(data.artifacts)
+      ? data.artifacts
+      : [];
+
+  const artifacts: Artifact[] = rawArtifacts
+    .filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item) &&
+        typeof item === "object",
+    )
+    .map((item) => {
+      const risk =
+        item.risk &&
+        typeof item.risk === "object"
+          ? (item.risk as Record<string, unknown>)
+          : {};
+
+      return {
+        algorithm:
+          typeof item.algorithm === "string"
+            ? item.algorithm
+            : "",
+        type:
+          typeof item.type === "string"
+            ? item.type
+            : "",
+        key_size:
+          typeof item.key_size === "number"
+            ? item.key_size
+            : null,
+        mode:
+          typeof item.mode === "string"
+            ? item.mode
+            : null,
+        curve:
+          typeof item.curve === "string"
+            ? item.curve
+            : null,
+        file:
+          typeof item.file === "string"
+            ? item.file
+            : "",
+        line:
+          typeof item.line === "number"
+            ? item.line
+            : 0,
+        evidence:
+          typeof item.evidence === "string"
+            ? item.evidence
+            : "",
+        security_risk:
+          typeof item.security_risk === "string"
+            ? item.security_risk
+            : typeof risk.security === "string"
+              ? risk.security
+              : null,
+        quantum_risk:
+          typeof item.quantum_risk === "string"
+            ? item.quantum_risk
+            : typeof risk.quantum === "string"
+              ? risk.quantum
+              : "LOW",
+        risk_reason:
+          typeof item.risk_reason === "string"
+            ? item.risk_reason
+            : "",
+        recommendation:
+          typeof item.recommendation === "string"
+            ? item.recommendation
+            : "",
+        mosca_risk:
+          typeof item.mosca_risk === "string"
+            ? item.mosca_risk
+            : null,
+        mosca_status:
+          typeof item.mosca_status === "string"
+            ? item.mosca_status
+            : null,
+      };
+    });
+
+  return {
+    target:
+      typeof data.target === "string"
+        ? data.target
+        : "",
+
+    generated_at:
+      typeof data.generated_at === "string"
+        ? data.generated_at
+        : undefined,
+
+    prototype_scope:
+      typeof data.prototype_scope === "string"
+        ? data.prototype_scope
+        : undefined,
+
+    total_files_scanned: numberValue(
+      summary.total_files_scanned,
+      numberValue(data.total_files_scanned),
+    ),
+
+    total_artifacts: numberValue(
+      summary.total_artifacts,
+      numberValue(data.total_artifacts),
+    ),
+
+    quantum_vulnerable_assets: numberValue(
+      summary.quantum_relevant_assets,
+      numberValue(data.quantum_vulnerable_assets),
+    ),
+
+    risk_summary: {
+      critical: numberValue(
+        risk.CRITICAL,
+        numberValue(legacyRisk.critical),
+      ),
+      high: numberValue(
+        risk.HIGH,
+        numberValue(legacyRisk.high),
+      ),
+      medium: numberValue(
+        risk.MEDIUM,
+        numberValue(legacyRisk.medium),
+      ),
+      low: numberValue(
+        risk.LOW,
+        numberValue(legacyRisk.low),
+      ),
+    },
+
+    mosca_inputs:
+      data.mosca_inputs &&
+      typeof data.mosca_inputs === "object"
+        ? (data.mosca_inputs as ScanResult["mosca_inputs"])
+        : undefined,
+
+    artifacts,
+  };
+}
 export default function ReportsPage() {
   const router = useRouter();
   const stored = useSessionStorageValue("ecdat_scan_result");
@@ -52,7 +225,7 @@ export default function ReportsPage() {
     }
 
     try {
-      return JSON.parse(stored) as ScanResult;
+      return normalizeReportsScanResult(JSON.parse(stored));
     } catch {
       return null;
     }
@@ -84,6 +257,12 @@ export default function ReportsPage() {
         criticalOrHigh: 0,
         lowRisk: 0,
         quantumPercent: 0,
+        quantumRisk: {
+          CRITICAL: 0,
+          HIGH: 0,
+          MEDIUM: 0,
+          LOW: 0,
+        },
       };
     }
 
@@ -100,10 +279,31 @@ export default function ReportsPage() {
           )
         : 0;
 
+    const quantumRisk = {
+      CRITICAL: 0,
+      HIGH: 0,
+      MEDIUM: 0,
+      LOW: 0,
+    };
+
+    for (const artifact of result.artifacts) {
+      const risk = artifact.quantum_risk.toUpperCase();
+
+      if (risk in quantumRisk) {
+        quantumRisk[
+          risk as keyof typeof quantumRisk
+        ] += 1;
+      }
+    }
+
+    const quantumExposed =
+      quantumRisk.CRITICAL +
+      quantumRisk.HIGH;
+
     const quantumPercent =
       result.total_artifacts > 0
         ? Math.round(
-            (result.quantum_vulnerable_assets /
+            (quantumExposed /
               result.total_artifacts) *
               100
           )
@@ -115,6 +315,7 @@ export default function ReportsPage() {
       lowRisk:
         result.risk_summary.low,
       quantumPercent,
+      quantumRisk,
     };
   }, [result]);
 
@@ -238,7 +439,7 @@ export default function ReportsPage() {
 
           <div className="flex flex-col items-end gap-4">
             <div className="text-right">
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
                 Generated
               </p>
 
@@ -316,18 +517,17 @@ export default function ReportsPage() {
 
             <p className="mt-5 max-w-3xl text-sm leading-6 text-[var(--muted-foreground)]">
               {result.quantum_vulnerable_assets} discovered
-              assets are classified as
-              quantum-vulnerable by the current
-              analysis engine. Immediate remediation
-              should focus on critical legacy
-              cryptography and migration planning
-              for vulnerable public-key mechanisms.
+              assets are currently identified as
+              quantum-relevant by the analysis engine.
+              Migration planning should prioritize
+              vulnerable public-key mechanisms and
+              findings with urgent migration timing.
             </p>
           </div>
 
           <div className="flex min-w-[180px] flex-col justify-center border-l border-[var(--border)] pl-7">
             <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
-              High / critical exposure
+              High / critical security exposure
             </span>
 
             <span className="mt-3 font-mono text-4xl">
@@ -343,27 +543,28 @@ export default function ReportsPage() {
 
       <section className="mt-5 grid gap-4 md:grid-cols-4">
         <ReportMetric
-          label="Critical"
+          label="Critical security"
           value={result.risk_summary.critical}
-          detail="immediate"
+          detail="current exposure"
         />
 
         <ReportMetric
-          label="High"
+          label="High security"
           value={result.risk_summary.high}
-          detail="migration"
+          detail="current exposure"
         />
 
         <ReportMetric
           label="Quantum exposed"
           value={
-            result.quantum_vulnerable_assets
+            stats.quantumRisk.CRITICAL +
+            stats.quantumRisk.HIGH
           }
           detail={`${stats.quantumPercent}% of findings`}
         />
 
         <ReportMetric
-          label="Low risk"
+          label="Low security"
           value={stats.lowRisk}
           detail="monitor"
         />
@@ -372,17 +573,17 @@ export default function ReportsPage() {
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <div className="border-b border-[var(--border)] px-6 py-5">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
-            Risk posture
+            Security risk posture
           </p>
 
           <h2 className="mt-2 text-lg font-medium">
-            Current exposure by severity
+            Current security exposure by severity
           </h2>
         </div>
 
         <div className="p-6">
           <RiskBar
-            label="Critical"
+            label="Critical security"
             value={
               result.risk_summary.critical
             }
@@ -393,7 +594,7 @@ export default function ReportsPage() {
           />
 
           <RiskBar
-            label="High"
+            label="High security"
             value={
               result.risk_summary.high
             }
@@ -404,7 +605,7 @@ export default function ReportsPage() {
           />
 
           <RiskBar
-            label="Medium"
+            label="Medium security"
             value={
               result.risk_summary.medium
             }
@@ -415,7 +616,7 @@ export default function ReportsPage() {
           />
 
           <RiskBar
-            label="Low"
+            label="Low security"
             value={
               result.risk_summary.low
             }
@@ -431,11 +632,11 @@ export default function ReportsPage() {
         <PriorityPanel
           number="01"
           title="Immediate remediation"
-          description="Address findings that represent unacceptable current security exposure."
+          description="Address findings whose migration timing is critical under the Mosca assessment."
           items={result.artifacts
             .filter(
               (artifact) =>
-                artifact.quantum_risk.toUpperCase() ===
+                artifact.mosca_risk?.toUpperCase() ===
                 "CRITICAL"
             )
             .map(
@@ -624,7 +825,7 @@ function ReportMetric({
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-5">
-      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
         {label}
       </p>
 
@@ -652,9 +853,14 @@ function RiskBar({
   total: number;
   risk: string;
 }) {
+  const safeValue = Number(value);
+  const safeTotal = Number(total);
+
   const percentage =
-    total > 0
-      ? (value / total) * 100
+    Number.isFinite(safeValue) &&
+    Number.isFinite(safeTotal) &&
+    safeTotal > 0
+      ? Math.min(100, Math.max(0, (safeValue / safeTotal) * 100))
       : 0;
 
   return (

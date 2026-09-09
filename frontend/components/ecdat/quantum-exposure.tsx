@@ -25,7 +25,7 @@ export function QuantumExposure({
     <section className="rounded-lg border border-white/[0.07] bg-card p-6">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             Post-quantum exposure
           </p>
 
@@ -48,7 +48,7 @@ export function QuantumExposure({
             / {totalArtifacts}
           </span>
 
-          <span className="ml-2 font-mono text-[9px] uppercase tracking-[0.12em] text-primary">
+          <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
             {percentage}%
           </span>
         </div>

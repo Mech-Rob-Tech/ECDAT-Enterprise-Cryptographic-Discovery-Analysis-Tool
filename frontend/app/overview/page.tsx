@@ -87,7 +87,7 @@ useEffect(() => {
         </div>
 
         <div className="text-right">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
             Target
           </p>
 
@@ -111,12 +111,12 @@ useEffect(() => {
         />
 
         <Metric
-          label="Quantum vulnerable"
+          label="Quantum-relevant assets"
           value={result.quantum_vulnerable_assets}
         />
 
         <Metric
-          label="Critical findings"
+          label="Critical security"
           value={result.risk_summary.critical}
         />
       </section>
@@ -126,32 +126,32 @@ useEffect(() => {
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <div className="border-b border-[var(--border)] px-6 py-5">
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--primary)]">
-            Risk distribution
+            Security risk distribution
           </p>
 
           <h2 className="mt-2 text-lg font-medium">
-            Cryptographic exposure
+            Current security exposure
           </h2>
         </div>
 
         <div className="grid grid-cols-4 gap-px bg-[var(--border)]">
           <RiskMetric
-            label="CRITICAL"
+            label="CRITICAL SECURITY"
             value={result.risk_summary.critical}
           />
 
           <RiskMetric
-            label="HIGH"
+            label="HIGH SECURITY"
             value={result.risk_summary.high}
           />
 
           <RiskMetric
-            label="MEDIUM"
+            label="MEDIUM SECURITY"
             value={result.risk_summary.medium}
           />
 
           <RiskMetric
-            label="LOW"
+            label="LOW SECURITY"
             value={result.risk_summary.low}
           />
         </div>
@@ -216,16 +216,17 @@ useEffect(() => {
           </p>
 
           <h2 className="mt-2 text-lg font-medium">
-            Highest-priority artifacts
+            Highest-priority quantum-exposed artifacts
           </h2>
         </div>
 
         <div>
           {result.artifacts
             .filter(
-              (artifact) =>
-                artifact.quantum_risk === "CRITICAL" ||
-                artifact.quantum_risk === "HIGH"
+              (artifact) => {
+                const risk = artifact.quantum_risk.toUpperCase();
+                return risk === "CRITICAL" || risk === "HIGH";
+              }
             )
             .map((artifact) => (
               <div

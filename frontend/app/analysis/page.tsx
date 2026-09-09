@@ -61,7 +61,7 @@ export default function AnalysisPage() {
           </div>
 
           <div className="hidden text-right md:block">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
               Workspace
             </p>
 
@@ -98,7 +98,7 @@ export default function AnalysisPage() {
                   </span>
 
                   <div>
-                    <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                       Analytical Tool 01
                     </p>
 
@@ -254,7 +254,7 @@ export default function AnalysisPage() {
           />
 
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               Analytical model
             </p>
 

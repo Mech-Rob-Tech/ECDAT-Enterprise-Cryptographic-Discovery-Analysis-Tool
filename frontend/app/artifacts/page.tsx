@@ -126,7 +126,7 @@ export default function ArtifactsPage() {
           </div>
 
           <div className="text-right">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
               Target
             </p>
 
@@ -146,12 +146,12 @@ export default function ArtifactsPage() {
         />
 
         <Metric
-          label="Critical"
+          label="Quantum critical"
           value={countRisk(artifacts, "CRITICAL")}
         />
 
         <Metric
-          label="High"
+          label="Quantum high"
           value={countRisk(artifacts, "HIGH")}
         />
 
@@ -166,7 +166,7 @@ export default function ArtifactsPage() {
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-5">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Inventory controls
             </p>
 
@@ -194,7 +194,7 @@ export default function ArtifactsPage() {
                   key={option}
                   type="button"
                   onClick={() => setFilter(option)}
-                  className={`border px-3 py-2 font-mono text-[9px] uppercase tracking-[0.13em] transition ${
+                  className={`border px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-[0.13em] transition ${
                     selected
                       ? "border-[var(--primary)] bg-[var(--primary)]/[0.08] text-[var(--primary)]"
                       : "border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--primary)]/40 hover:text-[var(--foreground)]"
@@ -213,7 +213,7 @@ export default function ArtifactsPage() {
       <section className="mt-5 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Discovered assets
             </p>
 
@@ -222,7 +222,7 @@ export default function ArtifactsPage() {
             </h2>
           </div>
 
-          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
             {filteredArtifacts.length} / {artifacts.length}
           </span>
         </div>
@@ -236,23 +236,23 @@ export default function ArtifactsPage() {
             <table className="w-full min-w-[1050px] border-collapse">
               <thead>
                 <tr className="border-b border-[var(--border)] text-left">
-                  <th className="px-6 py-4 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                  <th className="px-6 py-4 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
                     Algorithm
                   </th>
 
-                  <th className="px-6 py-4 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                  <th className="px-6 py-4 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
                     Type
                   </th>
 
-                  <th className="px-6 py-4 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                  <th className="px-6 py-4 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
                     Parameters
                   </th>
 
-                  <th className="px-6 py-4 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                  <th className="px-6 py-4 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
                     Location
                   </th>
 
-                  <th className="px-6 py-4 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                  <th className="px-6 py-4 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
                     Risk
                   </th>
                 </tr>
@@ -308,20 +308,20 @@ function ArtifactRow({
         </p>
 
         {artifact.curve && (
-          <p className="mt-2 font-mono text-[9px] text-[var(--muted-foreground)]">
+          <p className="mt-2 font-mono text-[11px] text-[var(--muted-foreground)]">
             {artifact.curve}
           </p>
         )}
       </td>
 
       <td className="px-6 py-5">
-        <span className="rounded-full border border-[var(--border)] px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+        <span className="rounded-full border border-[var(--border)] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
           {artifact.type}
         </span>
       </td>
 
       <td className="px-6 py-5">
-        <div className="space-y-1 font-mono text-[9px] text-[var(--muted-foreground)]">
+        <div className="space-y-1 font-mono text-[11px] text-[var(--muted-foreground)]">
           {artifact.key_size && (
             <p>key: {artifact.key_size}</p>
           )}
@@ -343,20 +343,20 @@ function ArtifactRow({
       </td>
 
       <td className="max-w-[340px] px-6 py-5">
-        <p className="break-all font-mono text-[10px] leading-5">
+        <p className="break-all font-mono text-[13px] leading-5">
           {artifact.file}
         </p>
 
-        <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]">
+        <p className="mt-2 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--muted-foreground)]">
           line {artifact.line}
         </p>
 
         <div className="mt-3 border-l border-[var(--primary)]/40 pl-3">
-          <p className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
             Evidence
           </p>
 
-          <p className="mt-1 break-words font-mono text-[9px] leading-5 text-[var(--foreground)]">
+          <p className="mt-1 break-words font-mono text-[12px] leading-5 text-[var(--foreground)]">
             {artifact.evidence}
           </p>
         </div>
@@ -365,11 +365,11 @@ function ArtifactRow({
       <td className="px-6 py-5">
         <RiskBadge risk={artifact.quantum_risk} />
 
-        <p className="mt-3 max-w-[260px] text-[10px] leading-5 text-[var(--muted-foreground)]">
+        <p className="mt-3 max-w-[260px] text-[13px] leading-5 text-[var(--muted-foreground)]">
           {artifact.risk_reason}
         </p>
 
-        <p className="mt-3 max-w-[260px] text-[10px] leading-5 text-[var(--foreground)]">
+        <p className="mt-3 max-w-[260px] text-[13px] leading-5 text-[var(--foreground)]">
           {artifact.recommendation}
         </p>
       </td>
@@ -395,7 +395,7 @@ function RiskBadge({
 
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.14em] ${classes}`}
+      className={`inline-flex rounded-full border px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] ${classes}`}
     >
       {normalized}
     </span>
@@ -411,7 +411,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-5">
-      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
         {label}
       </p>
 

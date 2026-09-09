@@ -38,13 +38,13 @@ export default async function ArtifactPage({
     <div className="mx-auto max-w-[1200px] px-6 py-10">
       <Link
         href="/overview"
-        className="font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-primary"
+        className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-primary"
       >
         ← Overview
       </Link>
 
       <div className="mt-8">
-        <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-primary">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
           Cryptographic artifact
         </p>
 
@@ -59,7 +59,7 @@ export default async function ArtifactPage({
 
       <div className="mt-10 grid gap-4 md:grid-cols-2">
         <section className="rounded-lg border border-white/[0.07] bg-card p-6">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             Location
           </p>
 
@@ -75,7 +75,7 @@ export default async function ArtifactPage({
         </section>
 
         <section className="rounded-lg border border-white/[0.07] bg-card p-6">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             Classification
           </p>
 
@@ -103,7 +103,7 @@ export default async function ArtifactPage({
       </div>
 
       <section className="mt-4 rounded-lg border border-white/[0.07] bg-card p-6">
-        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           Evidence
         </p>
 
@@ -113,7 +113,7 @@ export default async function ArtifactPage({
       </section>
 
       <section className="mt-4 rounded-lg border border-white/[0.07] bg-card p-6">
-        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           Risk assessment
         </p>
 
@@ -123,7 +123,7 @@ export default async function ArtifactPage({
       </section>
 
       <section className="mt-4 rounded-lg border border-primary/15 bg-primary/[0.025] p-6">
-        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           Recommended action
         </p>
 

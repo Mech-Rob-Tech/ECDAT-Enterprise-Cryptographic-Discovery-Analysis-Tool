@@ -18,7 +18,7 @@ const styles: Record<RiskLevel, string> = {
 export function RiskBadge({ level }: RiskBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] ${styles[level]}`}
+      className={`inline-flex items-center rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] ${styles[level]}`}
     >
       {level}
     </span>

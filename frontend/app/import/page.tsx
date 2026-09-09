@@ -196,7 +196,7 @@ export default function ImportPage() {
 
             <label
               htmlFor="repository"
-              className="mt-7 block font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]"
+              className="mt-7 block font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]"
             >
               Repository path
             </label>
@@ -238,7 +238,7 @@ export default function ImportPage() {
 
             <div className="my-7 h-px bg-[var(--border)]" />
 
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
               Existing result
             </p>
 
