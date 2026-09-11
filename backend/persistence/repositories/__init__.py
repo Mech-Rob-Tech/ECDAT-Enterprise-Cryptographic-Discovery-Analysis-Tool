@@ -7,3 +7,5 @@ from persistence.repositories.dependency_contract import (
 __all__ = [
     "DependencyRepository",
 ]
+from persistence.repositories.scan_version_contract import ScanVersionRepository
+from persistence.repositories.scan_version import PostgreSQLScanVersionRepository
