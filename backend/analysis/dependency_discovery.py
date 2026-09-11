@@ -239,6 +239,14 @@ def discover_repository_dependencies(
         try:
             observations = _manifest_dependencies(path)
             for package, reference in observations:
+                try:
+                    relative_reference = (
+                        f"{path.relative_to(root).as_posix()}:"
+                        f"{reference.rsplit(':', 1)[1]}"
+                    )
+                except (ValueError, IndexError):
+                    relative_reference = reference
+
                 normalized = _normalize_package_name(package)
                 if not any(
                     crypto_name in normalized
@@ -252,7 +260,7 @@ def discover_repository_dependencies(
                         target_node_id=_node_id("library", package),
                         relationship_type="COMPONENT_USES_LIBRARY",
                         confidence="high",
-                        source_reference=reference,
+                        source_reference=relative_reference,
                         scan_id=scan_id,
                     )
                 )
@@ -263,13 +271,22 @@ def discover_repository_dependencies(
         try:
             for package, reference in _python_imports(path):
                 relative = path.relative_to(root).as_posix()
+
+                try:
+                    relative_reference = (
+                        f"{relative}:"
+                        f"{reference.rsplit(':', 1)[1]}"
+                    )
+                except (ValueError, IndexError):
+                    relative_reference = relative
+
                 discovered.append(
                     _make_dependency(
                         source_node_id=component_id(relative),
                         target_node_id=_node_id("library", package),
                         relationship_type="COMPONENT_USES_LIBRARY",
                         confidence="medium",
-                        source_reference=reference,
+                        source_reference=relative_reference,
                         scan_id=scan_id,
                     )
                 )

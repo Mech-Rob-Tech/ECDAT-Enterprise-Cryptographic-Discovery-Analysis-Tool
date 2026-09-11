@@ -29,6 +29,7 @@ class ScanState:
 
     # Graph snapshot
     relationships: List[Dict[str, Any]] = field(default_factory=list)
+    dependencies: List[Dict[str, Any]] = field(default_factory=list)
 
     # Analytical projections
     risk_landscape: Dict[str, Any] = field(default_factory=dict)
