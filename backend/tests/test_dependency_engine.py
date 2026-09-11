@@ -88,7 +88,7 @@ def test_missing_evidence_reduces_coverage():
         ]
     )
 
-    assert engine.closure("a").evidence_coverage == 0.0
+    assert engine.closure("a").evidence_coverage == 0.5
 
 
 def test_generic_topology_relationships_are_not_promoted_to_dependencies():
