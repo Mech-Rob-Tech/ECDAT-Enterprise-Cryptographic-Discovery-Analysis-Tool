@@ -51,6 +51,97 @@ class DependencyService:
 
         self._engine = DependencyEngine(self._dependencies)
 
+    @classmethod
+    def from_dicts(
+        cls,
+        records: Sequence[dict],
+    ) -> "DependencyService":
+        """Construct a service from persisted dependency records."""
+
+        dependencies = []
+
+        for record in records:
+            if not isinstance(record, dict):
+                raise ValueError(
+                    "Each dependency record must be an object."
+                )
+
+            required = (
+                "dependency_id",
+                "source_node_id",
+                "target_node_id",
+                "relationship_type",
+            )
+
+            missing = [
+                field
+                for field in required
+                if not str(record.get(field, "")).strip()
+            ]
+
+            if missing:
+                raise ValueError(
+                    "Dependency record is missing required fields: "
+                    + ", ".join(missing)
+                )
+
+            dependencies.append(
+                Dependency(
+                    dependency_id=str(
+                        record["dependency_id"]
+                    ),
+                    source_node_id=str(
+                        record["source_node_id"]
+                    ),
+                    target_node_id=str(
+                        record["target_node_id"]
+                    ),
+                    relationship_type=str(
+                        record["relationship_type"]
+                    ),
+                    confidence=str(
+                        record.get(
+                            "confidence",
+                            "unknown",
+                        )
+                    ),
+                    evidence_ids=list(
+                        record.get(
+                            "evidence_ids",
+                            [],
+                        ) or []
+                    ),
+                    protocol=record.get("protocol"),
+                    purpose=record.get("purpose"),
+                    effective_from=record.get(
+                        "effective_from"
+                    ),
+                    effective_until=record.get(
+                        "effective_until"
+                    ),
+                    observed_at=record.get(
+                        "observed_at"
+                    ),
+                    scan_id=record.get(
+                        "scan_id"
+                    ),
+                    source_type=record.get(
+                        "source_type"
+                    ),
+                    source_reference=record.get(
+                        "source_reference"
+                    ),
+                    record_version=int(
+                        record.get(
+                            "record_version",
+                            1,
+                        )
+                    ),
+                )
+            )
+
+        return cls(dependencies)
+
     def list_dependencies(
         self,
         *,
