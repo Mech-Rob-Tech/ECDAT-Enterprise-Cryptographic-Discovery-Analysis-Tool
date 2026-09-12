@@ -1366,3 +1366,275 @@ def test_conditional_propagation_unresolved_suspends_edge():
             evidence_ids=("e-bc",),
         ),
     )
+
+
+def test_dependency_delta_accepts_one_shot_dependency_iterators():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import build_dependency_delta
+
+    previous = [
+        Dependency(
+            dependency_id="dep-a",
+            source_node_id="component:a.py",
+            target_node_id="library:crypto",
+            relationship_type="COMPONENT_USES_LIBRARY",
+            confidence="high",
+            directness="direct",
+            source_type="repository",
+            source_reference="a.py:1",
+            record_version=1,
+        ),
+    ]
+
+    current = [
+        Dependency(
+            dependency_id="dep-a",
+            source_node_id="component:a.py",
+            target_node_id="library:tls",
+            relationship_type="COMPONENT_USES_LIBRARY",
+            confidence="high",
+            directness="direct",
+            source_type="repository",
+            source_reference="a.py:1",
+            record_version=1,
+        ),
+    ]
+
+    delta = build_dependency_delta(
+        iter(previous),
+        iter(current),
+        (),
+    )
+
+    assert delta.added == ()
+    assert delta.removed == ()
+    assert delta.modified == ("dep-a",)
+    assert delta.unchanged_count == 0
+    assert delta.recompute_nodes == ("component:a.py",)
+    assert delta.preserved_nodes == ()
+
+
+def test_dependency_delta_recompute_and_preserve_are_disjoint():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import build_dependency_delta
+
+    def dep(dependency_id, source, target):
+        return Dependency(
+            dependency_id=dependency_id,
+            source_node_id=source,
+            target_node_id=target,
+            relationship_type="COMPONENT_USES_LIBRARY",
+            confidence="high",
+            directness="direct",
+            source_type="repository",
+            source_reference=f"{source.split(':', 1)[-1]}:1",
+            record_version=1,
+        )
+
+    previous = [
+        dep("dep-a", "component:a.py", "library:tls"),
+        dep("dep-b", "component:b.py", "library:tls"),
+        dep("dep-c", "component:c.py", "library:tls"),
+    ]
+
+    current = [
+        dep("dep-a", "component:a.py", "library:tls"),
+        dep("dep-b", "component:b.py", "library:crypto"),
+        dep("dep-c", "component:c.py", "library:tls"),
+    ]
+
+    delta = build_dependency_delta(
+        previous,
+        current,
+        ["component:b.py"],
+    )
+
+    assert delta.recompute_nodes == ("component:b.py",)
+    assert delta.preserved_nodes == (
+        "component:a.py",
+        "component:c.py",
+    )
+
+    assert set(delta.recompute_nodes).isdisjoint(
+        set(delta.preserved_nodes)
+    )
+
+
+def test_removed_dependency_does_not_automatically_recompute_source():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import build_dependency_delta
+
+    dependency = Dependency(
+        dependency_id="dep-removed",
+        source_node_id="component:a.py",
+        target_node_id="library:openssl",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        source_type="repository",
+        source_reference="a.py:1",
+        record_version=1,
+    )
+
+    delta = build_dependency_delta(
+        [dependency],
+        [],
+        [],
+    )
+
+    assert delta.removed == ("dep-removed",)
+    assert delta.recompute_nodes == ()
+    assert delta.preserved_nodes == ()
+
+
+def test_added_dependency_recomputes_current_source_node():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import build_dependency_delta
+
+    dependency = Dependency(
+        dependency_id="dep-added",
+        source_node_id="component:a.py",
+        target_node_id="library:openssl",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        source_type="repository",
+        source_reference="a.py:1",
+        record_version=1,
+    )
+
+    delta = build_dependency_delta(
+        [],
+        [dependency],
+        [],
+    )
+
+    assert delta.added == ("dep-added",)
+    assert delta.recompute_nodes == ("component:a.py",)
+    assert delta.preserved_nodes == ()
+
+
+def test_modified_dependency_recomputes_current_source_node():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import build_dependency_delta
+
+    previous = Dependency(
+        dependency_id="dep-modified",
+        source_node_id="component:a.py",
+        target_node_id="library:openssl",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        source_type="repository",
+        source_reference="a.py:1",
+        record_version=1,
+    )
+
+    current = Dependency(
+        dependency_id="dep-modified",
+        source_node_id="component:a.py",
+        target_node_id="library:pqc",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        source_type="repository",
+        source_reference="a.py:1",
+        record_version=1,
+    )
+
+    delta = build_dependency_delta(
+        [previous],
+        [current],
+        [],
+    )
+
+    assert delta.modified == ("dep-modified",)
+    assert delta.recompute_nodes == ("component:a.py",)
+    assert delta.preserved_nodes == ()
+
+
+def test_affected_node_can_require_recompute_without_current_dependency():
+    from analysis.incremental_dependency import build_dependency_delta
+
+    delta = build_dependency_delta(
+        [],
+        [],
+        ["component:changed.py"],
+    )
+
+    assert delta.affected_nodes == ("component:changed.py",)
+    assert delta.recompute_nodes == ("component:changed.py",)
+    assert delta.preserved_nodes == ()
+
+
+def test_unaffected_current_source_is_preserved():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import build_dependency_delta
+
+    dependency = Dependency(
+        dependency_id="dep-stable",
+        source_node_id="component:stable.py",
+        target_node_id="library:tls",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        source_type="repository",
+        source_reference="stable.py:1",
+        record_version=1,
+    )
+
+    delta = build_dependency_delta(
+        [dependency],
+        [dependency],
+        [],
+    )
+
+    assert delta.recompute_nodes == ()
+    assert delta.preserved_nodes == ("component:stable.py",)
+
+
+def test_recompute_and_preserve_order_is_deterministic():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import build_dependency_delta
+
+    dependencies = [
+        Dependency(
+            dependency_id="dep-z",
+            source_node_id="component:z.py",
+            target_node_id="library:tls",
+            relationship_type="COMPONENT_USES_LIBRARY",
+            confidence="high",
+            directness="direct",
+            source_type="repository",
+            source_reference="z.py:1",
+            record_version=1,
+        ),
+        Dependency(
+            dependency_id="dep-a",
+            source_node_id="component:a.py",
+            target_node_id="library:tls",
+            relationship_type="COMPONENT_USES_LIBRARY",
+            confidence="high",
+            directness="direct",
+            source_type="repository",
+            source_reference="a.py:1",
+            record_version=1,
+        ),
+    ]
+
+    first = build_dependency_delta(
+        dependencies,
+        dependencies,
+        ["component:z.py"],
+    )
+
+    second = build_dependency_delta(
+        list(reversed(dependencies)),
+        list(reversed(dependencies)),
+        ["component:z.py"],
+    )
+
+    assert first.recompute_nodes == ("component:z.py",)
+    assert first.preserved_nodes == ("component:a.py",)
+
+    assert first == second

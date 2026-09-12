@@ -385,6 +385,9 @@ def build_dependency_delta(
     same identity but different structural fields is considered modified.
     """
 
+    previous_dependencies = tuple(previous_dependencies)
+    current_dependencies = tuple(current_dependencies)
+
     def fingerprint(dependency: object) -> Tuple[object, ...]:
         return (
             getattr(dependency, "source_node_id", None),
