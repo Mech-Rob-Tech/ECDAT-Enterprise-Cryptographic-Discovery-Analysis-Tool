@@ -159,6 +159,206 @@ class IncrementalDependencyPlanner:
 
 
 @dataclass(frozen=True)
+class DependencyChange:
+    """Deterministic classification of one dependency observation."""
+
+    dependency_id: str
+    change_type: str
+    previous_dependency: object | None
+    current_dependency: object | None
+    changed_fields: Tuple[str, ...]
+    affected_source_node: str | None
+    affected_target_node: str | None
+    evidence_ids: Tuple[str, ...]
+
+
+class DependencyDetector:
+    """Detect deterministic changes between dependency observations.
+
+    This layer performs observation comparison only. It does not propagate
+    impact and does not decide recomputation policy.
+    """
+
+    _FIELD_NAMES = (
+        "source_node_id",
+        "target_node_id",
+        "relationship_type",
+        "confidence",
+        "directness",
+        "protocol",
+        "purpose",
+        "effective_from",
+        "effective_until",
+        "observed_at",
+        "source_type",
+        "source_reference",
+        "record_version",
+    )
+
+    def detect(
+        self,
+        previous_dependencies: Iterable[object],
+        current_dependencies: Iterable[object],
+    ) -> Tuple[DependencyChange, ...]:
+        previous = {
+            getattr(item, "dependency_id"): item
+            for item in previous_dependencies
+        }
+        current = {
+            getattr(item, "dependency_id"): item
+            for item in current_dependencies
+        }
+
+        changes = []
+
+        for dependency_id in sorted(
+            set(previous) | set(current)
+        ):
+            old = previous.get(dependency_id)
+            new = current.get(dependency_id)
+
+            if old is None:
+                changes.append(
+                    self._change(
+                        dependency_id,
+                        "added",
+                        None,
+                        new,
+                        (),
+                    )
+                )
+                continue
+
+            if new is None:
+                changes.append(
+                    self._change(
+                        dependency_id,
+                        "removed",
+                        old,
+                        None,
+                        (),
+                    )
+                )
+                continue
+
+            changed_fields = tuple(
+                field
+                for field in self._FIELD_NAMES
+                if getattr(old, field, None)
+                != getattr(new, field, None)
+            )
+
+            if changed_fields:
+                change_type = (
+                    "invalidated"
+                    if self._is_invalidated(old, new, changed_fields)
+                    else "modified"
+                )
+            else:
+                change_type = "unchanged"
+
+            changes.append(
+                self._change(
+                    dependency_id,
+                    change_type,
+                    old,
+                    new,
+                    changed_fields,
+                )
+            )
+
+        return tuple(changes)
+
+    @staticmethod
+    def _is_invalidated(
+        previous: object,
+        current: object,
+        changed_fields: Tuple[str, ...],
+    ) -> bool:
+        """Evidence invalidation is distinct from structural modification."""
+
+        if not changed_fields:
+            return False
+
+        source_changed = (
+            "source_reference" in changed_fields
+            or "source_type" in changed_fields
+        )
+
+        previous_evidence = tuple(
+            sorted(
+                set(
+                    getattr(
+                        previous,
+                        "evidence_ids",
+                        (),
+                    )
+                    or ()
+                )
+            )
+        )
+
+        current_evidence = tuple(
+            sorted(
+                set(
+                    getattr(
+                        current,
+                        "evidence_ids",
+                        (),
+                    )
+                    or ()
+                )
+            )
+        )
+
+        evidence_changed = (
+            previous_evidence != current_evidence
+        )
+
+        return source_changed and evidence_changed
+
+    @staticmethod
+    def _change(
+        dependency_id: str,
+        change_type: str,
+        previous: object | None,
+        current: object | None,
+        changed_fields: Tuple[str, ...],
+    ) -> DependencyChange:
+        item = current or previous
+
+        return DependencyChange(
+            dependency_id=dependency_id,
+            change_type=change_type,
+            previous_dependency=previous,
+            current_dependency=current,
+            changed_fields=changed_fields,
+            affected_source_node=(
+                getattr(item, "source_node_id", None)
+                if item is not None
+                else None
+            ),
+            affected_target_node=(
+                getattr(item, "target_node_id", None)
+                if item is not None
+                else None
+            ),
+            evidence_ids=tuple(
+                sorted(
+                    set(
+                        getattr(
+                            item,
+                            "evidence_ids",
+                            (),
+                        )
+                        or ()
+                    )
+                )
+            ),
+        )
+
+
+@dataclass(frozen=True)
 class DependencyDelta:
     """Semantic difference between two dependency states."""
 

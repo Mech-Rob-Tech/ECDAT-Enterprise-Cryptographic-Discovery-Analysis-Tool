@@ -335,3 +335,199 @@ def test_dependency_delta_is_deterministic():
     )
 
     assert first == second
+
+
+def test_dependency_detector_classifies_added_removed_modified_and_unchanged():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import DependencyDetector
+
+    def dep(
+        dependency_id,
+        target,
+        *,
+        evidence_ids=None,
+        source_reference="service.py:1",
+    ):
+        return Dependency(
+            dependency_id=dependency_id,
+            source_node_id="component:service.py",
+            target_node_id=target,
+            relationship_type="COMPONENT_USES_LIBRARY",
+            confidence="high",
+            directness="direct",
+            evidence_ids=list(evidence_ids or []),
+            source_type="repository",
+            source_reference=source_reference,
+            record_version=1,
+        )
+
+    previous = [
+        dep("dep-unchanged", "library:tls"),
+        dep("dep-modified", "library:crypto"),
+        dep("dep-removed", "library:openssl"),
+    ]
+
+    current = [
+        dep("dep-unchanged", "library:tls"),
+        dep("dep-modified", "library:pqc"),
+        dep("dep-added", "library:kyber"),
+    ]
+
+    changes = DependencyDetector().detect(
+        previous,
+        current,
+    )
+
+    assert [
+        (item.dependency_id, item.change_type)
+        for item in changes
+    ] == [
+        ("dep-added", "added"),
+        ("dep-modified", "modified"),
+        ("dep-removed", "removed"),
+        ("dep-unchanged", "unchanged"),
+    ]
+
+
+def test_dependency_detector_reports_exact_changed_fields():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import DependencyDetector
+
+    previous = Dependency(
+        dependency_id="dep-1",
+        source_node_id="component:a.py",
+        target_node_id="library:crypto",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        protocol="TLS",
+        source_type="repository",
+        source_reference="a.py:10",
+        record_version=1,
+    )
+
+    current = Dependency(
+        dependency_id="dep-1",
+        source_node_id="component:a.py",
+        target_node_id="library:pqc",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        protocol="TLS",
+        source_type="repository",
+        source_reference="a.py:10",
+        record_version=1,
+    )
+
+    change = DependencyDetector().detect(
+        [previous],
+        [current],
+    )[0]
+
+    assert change.change_type == "modified"
+    assert change.changed_fields == ("target_node_id",)
+    assert change.affected_source_node == "component:a.py"
+    assert change.affected_target_node == "library:pqc"
+
+
+def test_dependency_detector_preserves_evidence_deterministically():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import DependencyDetector
+
+    dependency = Dependency(
+        dependency_id="dep-evidence",
+        source_node_id="component:a.py",
+        target_node_id="library:crypto",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        evidence_ids=["e3", "e1", "e2", "e1"],
+        source_type="repository",
+        source_reference="a.py:10",
+        record_version=1,
+    )
+
+    change = DependencyDetector().detect(
+        [],
+        [dependency],
+    )[0]
+
+    assert change.change_type == "added"
+    assert change.evidence_ids == ("e1", "e2", "e3")
+    assert change.affected_source_node == "component:a.py"
+    assert change.affected_target_node == "library:crypto"
+
+
+def test_dependency_detector_is_deterministic():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import DependencyDetector
+
+    dependency = Dependency(
+        dependency_id="dep-z",
+        source_node_id="component:z.py",
+        target_node_id="library:crypto",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        source_type="repository",
+        source_reference="z.py:1",
+        record_version=1,
+    )
+
+    detector = DependencyDetector()
+
+    first = detector.detect(
+        [dependency],
+        [dependency],
+    )
+
+    second = detector.detect(
+        [dependency],
+        [dependency],
+    )
+
+    assert first == second
+
+
+def test_dependency_detector_distinguishes_evidence_invalidation():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import DependencyDetector
+
+    previous = Dependency(
+        dependency_id="dep-invalidated",
+        source_node_id="component:service.py",
+        target_node_id="library:crypto",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        evidence_ids=["e-old"],
+        source_type="repository",
+        source_reference="service.py:10",
+        record_version=1,
+    )
+
+    current = Dependency(
+        dependency_id="dep-invalidated",
+        source_node_id="component:service.py",
+        target_node_id="library:crypto",
+        relationship_type="COMPONENT_USES_LIBRARY",
+        confidence="high",
+        directness="direct",
+        evidence_ids=["e-new"],
+        source_type="repository",
+        source_reference="service.py:11",
+        record_version=1,
+    )
+
+    change = DependencyDetector().detect(
+        [previous],
+        [current],
+    )[0]
+
+    assert change.change_type == "invalidated"
+    assert change.changed_fields == (
+        "source_reference",
+    )
+    assert change.affected_source_node == "component:service.py"
+    assert change.affected_target_node == "library:crypto"
+    assert change.evidence_ids == ("e-new",)
