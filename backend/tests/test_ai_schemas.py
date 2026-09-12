@@ -24,7 +24,9 @@ def test_ai_query_defaults():
 
 def test_ai_context_defaults_are_empty():
     context = AIContext()
-
+    assert context.artifacts == []
+    assert context.business_contexts == []
+    assert context.relationships == []
     assert context.scan_summary == {}
     assert context.artifact == {}
     assert context.recommendations == []

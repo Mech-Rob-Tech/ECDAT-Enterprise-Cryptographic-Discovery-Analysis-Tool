@@ -57,6 +57,18 @@ class AIContext:
     scan_summary: Dict[str, Any] = field(default_factory=dict)
     artifact: Dict[str, Any] = field(default_factory=dict)
 
+    artifacts: List[Dict[str, Any]] = field(
+            default_factory=list
+        )
+
+    business_contexts: List[Dict[str, Any]] = field(
+            default_factory=list
+        )
+
+    relationships: List[Dict[str, Any]] = field(
+            default_factory=list
+        )
+
     recommendations: List[Dict[str, Any]] = field(
         default_factory=list
     )
@@ -84,6 +96,7 @@ class AIContext:
     metadata: Dict[str, Any] = field(
         default_factory=dict
     )
+
 
 
 @dataclass

@@ -37,6 +37,8 @@ class GroundingResult:
 # are trusted.
 REFERENCE_ID_FIELDS = {
     "scan_id",
+    "context_id",
+    "target_id",
     "application_id",
     "component_id",
     "artifact_id",
@@ -174,6 +176,21 @@ def collect_allowed_reference_ids(
 
     _collect_from_mapping(
         context.artifact,
+        references,
+    )
+
+    _collect_from_items(
+        context.artifacts,
+        references,
+    )
+
+    _collect_from_items(
+        context.business_contexts,
+        references,
+    )
+
+    _collect_from_items(
+        context.relationships,
         references,
     )
 
