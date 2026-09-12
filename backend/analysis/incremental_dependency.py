@@ -471,3 +471,294 @@ def build_dependency_delta(
         recompute_nodes=recompute_nodes,
         preserved_nodes=preserved_nodes,
     )
+
+
+@dataclass(frozen=True)
+class PropagationPath:
+    """One deterministic causal path from a dependency change to a node."""
+
+    origin_dependency_id: str
+    node_ids: Tuple[str, ...]
+    dependency_ids: Tuple[str, ...]
+    evidence_ids: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class AffectedNode:
+    """One node reached by deterministic dependency propagation."""
+
+    node_id: str
+    depth: int
+    origin_dependency_ids: Tuple[str, ...]
+    paths: Tuple[PropagationPath, ...]
+
+
+@dataclass(frozen=True)
+class PropagationResult:
+    """Deterministic affected-node propagation result."""
+
+    affected_nodes: Tuple[AffectedNode, ...]
+    paths: Tuple[PropagationPath, ...]
+
+
+class AffectedNodePropagator:
+    """Propagate dependency changes through observed reverse dependencies.
+
+    Propagation answers only the structural question:
+    "Which dependants are reachable from these changed dependency targets?"
+
+    Governance, conditional predicates, and recomputation policy belong to
+    later stages.
+    """
+
+    def __init__(self, dependencies: Iterable[object]) -> None:
+        from analysis.dependency_engine import DependencyEngine
+
+        self._dependencies = tuple(
+            sorted(
+                dependencies,
+                key=lambda item: (
+                    item.source_node_id,
+                    item.target_node_id,
+                    item.relationship_type,
+                    item.dependency_id,
+                ),
+            )
+        )
+        self._engine = DependencyEngine(self._dependencies)
+
+    def propagate(
+        self,
+        changes: Iterable[DependencyChange],
+        *,
+        max_depth: int | None = None,
+    ) -> PropagationResult:
+        if max_depth is not None and max_depth < 1:
+            return PropagationResult((), ())
+
+        queue = []
+
+        for change in changes:
+            origin = (
+                change.affected_target_node
+                or change.affected_source_node
+            )
+
+            if not origin:
+                continue
+
+            queue.append(
+                (
+                    origin,
+                    origin,
+                    change.dependency_id,
+                    change.change_type,
+                    tuple(change.evidence_ids),
+                    0,
+                    (origin,),
+                    (),
+                )
+            )
+
+        queue.sort(
+            key=lambda item: (
+                item[1],
+                item[2],
+            )
+        )
+
+        paths = []
+
+        while queue:
+            (
+                current_node,
+                origin_node,
+                origin_dependency_id,
+                change_type,
+                evidence_ids,
+                depth,
+                node_ids,
+                dependency_ids,
+            ) = queue.pop(0)
+
+            if max_depth is not None and depth >= max_depth:
+                continue
+
+            for dependency in self._engine.dependants(current_node):
+                next_node = dependency.source_node_id
+
+                if next_node in node_ids:
+                    continue
+
+                next_depth = depth + 1
+                next_dependency_ids = (
+                    dependency_ids
+                    + (dependency.dependency_id,)
+                )
+
+                path = PropagationPath(
+                    origin_dependency_id=origin_dependency_id,
+                    node_ids=node_ids + (next_node,),
+                    dependency_ids=next_dependency_ids,
+                    evidence_ids=tuple(
+                        sorted(
+                            set(evidence_ids)
+                            | (
+                                set(dependency.evidence_ids)
+                                if depth > 0
+                                else set()
+                            )
+                        )
+                    ),
+                )
+
+                paths.append(path)
+
+                queue.append(
+                    (
+                        next_node,
+                        origin_node,
+                        origin_dependency_id,
+                        change_type,
+                        path.evidence_ids,
+                        next_depth,
+                        path.node_ids,
+                        path.dependency_ids,
+                    )
+                )
+
+            queue.sort(
+                key=lambda item: (
+                    item[5],
+                    item[1],
+                    item[2],
+                    item[0],
+                    item[6],
+                    item[7],
+                )
+            )
+
+        unique_paths = tuple(
+            sorted(
+                {
+                    (
+                        path.origin_dependency_id,
+                        path.node_ids,
+                        path.dependency_ids,
+                        path.evidence_ids,
+                    ): path
+                    for path in paths
+                }.values(),
+                key=lambda path: (
+                    path.node_ids[-1],
+                    len(path.dependency_ids),
+                    path.node_ids,
+                    path.dependency_ids,
+                    path.origin_dependency_id,
+                ),
+            )
+        )
+
+        grouped = {}
+
+        for path in unique_paths:
+            node_id = path.node_ids[-1]
+            grouped.setdefault(node_id, []).append(path)
+
+        affected_nodes = []
+
+        affected_node_ids = set(grouped)
+
+        def has_cycle() -> bool:
+            """Detect cycles in the complete observed dependency graph."""
+            visiting = set()
+            visited = set()
+
+            def visit(node_id: str) -> bool:
+                if node_id in visiting:
+                    return True
+
+                if node_id in visited:
+                    return False
+
+                visiting.add(node_id)
+
+                for dependency in self._engine.direct_dependencies(
+                    node_id
+                ):
+                    if visit(dependency.target_node_id):
+                        return True
+
+                visiting.remove(node_id)
+                visited.add(node_id)
+                return False
+
+            all_node_ids = sorted(
+                {
+                    dependency.source_node_id
+                    for dependency in self._dependencies
+                }
+                | {
+                    dependency.target_node_id
+                    for dependency in self._dependencies
+                }
+            )
+
+            return any(
+                visit(node_id)
+                for node_id in all_node_ids
+                if node_id not in visited
+            )
+
+        cycle_present = has_cycle()
+
+        if cycle_present:
+            ordered_nodes = sorted(affected_node_ids)
+        else:
+            ordered_nodes = sorted(
+                affected_node_ids,
+                key=lambda node_id: (
+                    min(
+                        len(path.dependency_ids)
+                        for path in grouped[node_id]
+                    ),
+                    node_id,
+                ),
+            )
+
+        for node_id in ordered_nodes:
+            node_paths = tuple(
+                sorted(
+                    grouped[node_id],
+                    key=lambda path: (
+                        len(path.dependency_ids),
+                        path.origin_dependency_id,
+                        path.node_ids,
+                        path.dependency_ids,
+                    ),
+                )
+            )
+
+            affected_nodes.append(
+                AffectedNode(
+                    node_id=node_id,
+                    depth=min(
+                        len(path.dependency_ids)
+                        for path in node_paths
+                    ),
+                    origin_dependency_ids=tuple(
+                        sorted(
+                            {
+                                path.origin_dependency_id
+                                for path in node_paths
+                            }
+                        )
+                    ),
+                    paths=node_paths,
+                )
+            )
+
+        return PropagationResult(
+            affected_nodes=tuple(affected_nodes),
+            paths=unique_paths,
+        )

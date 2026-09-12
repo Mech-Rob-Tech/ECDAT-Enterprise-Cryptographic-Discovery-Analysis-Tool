@@ -531,3 +531,215 @@ def test_dependency_detector_distinguishes_evidence_invalidation():
     assert change.affected_source_node == "component:service.py"
     assert change.affected_target_node == "library:crypto"
     assert change.evidence_ids == ("e-new",)
+
+
+def test_affected_node_propagation_traverses_reverse_dependency_direction():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        DependencyChange,
+    )
+
+    dependencies = [
+        Dependency(
+            dependency_id="dep-ab",
+            source_node_id="component:a",
+            target_node_id="library:b",
+            relationship_type="COMPONENT_USES_LIBRARY",
+            confidence="high",
+            source_type="repository",
+            evidence_ids=["e-ab"],
+        ),
+        Dependency(
+            dependency_id="dep-bc",
+            source_node_id="library:b",
+            target_node_id="library:c",
+            relationship_type="LIBRARY_USES_LIBRARY",
+            confidence="high",
+            source_type="repository",
+            evidence_ids=["e-bc"],
+        ),
+    ]
+
+    change = DependencyChange(
+        dependency_id="dep-bc",
+        change_type="modified",
+        previous_dependency=dependencies[1],
+        current_dependency=dependencies[1],
+        changed_fields=("target_node_id",),
+        affected_source_node="library:b",
+        affected_target_node="library:c",
+        evidence_ids=("e-bc",),
+    )
+
+    result = AffectedNodePropagator(dependencies).propagate([change])
+
+    assert [item.node_id for item in result.affected_nodes] == [
+        "library:b",
+        "component:a",
+    ]
+
+    assert result.affected_nodes[0].depth == 1
+    assert result.affected_nodes[1].depth == 2
+
+
+def test_affected_node_propagation_is_cycle_safe_and_deterministic():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        DependencyChange,
+    )
+
+    dependencies = [
+        Dependency(
+            dependency_id="ab",
+            source_node_id="a",
+            target_node_id="b",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+        ),
+        Dependency(
+            dependency_id="bc",
+            source_node_id="b",
+            target_node_id="c",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+        ),
+        Dependency(
+            dependency_id="ca",
+            source_node_id="c",
+            target_node_id="a",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+        ),
+    ]
+
+    change = DependencyChange(
+        dependency_id="bc",
+        change_type="modified",
+        previous_dependency=dependencies[1],
+        current_dependency=dependencies[1],
+        changed_fields=("target_node_id",),
+        affected_source_node="b",
+        affected_target_node="c",
+        evidence_ids=(),
+    )
+
+    propagator = AffectedNodePropagator(dependencies)
+
+    first = propagator.propagate([change])
+    second = propagator.propagate([change])
+
+    assert first == second
+    assert [item.node_id for item in first.affected_nodes] == [
+        "a",
+        "b",
+    ]
+
+
+def test_affected_node_propagation_preserves_multiple_paths_and_evidence():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        DependencyChange,
+    )
+
+    dependencies = [
+        Dependency(
+            dependency_id="ab",
+            source_node_id="a",
+            target_node_id="b",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+            evidence_ids=["e-ab"],
+        ),
+        Dependency(
+            dependency_id="ac",
+            source_node_id="a",
+            target_node_id="c",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+            evidence_ids=["e-ac"],
+        ),
+        Dependency(
+            dependency_id="bc",
+            source_node_id="b",
+            target_node_id="c",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+            evidence_ids=["e-bc"],
+        ),
+    ]
+
+    change = DependencyChange(
+        dependency_id="bc",
+        change_type="modified",
+        previous_dependency=dependencies[2],
+        current_dependency=dependencies[2],
+        changed_fields=("target_node_id",),
+        affected_source_node="b",
+        affected_target_node="c",
+        evidence_ids=("e-bc",),
+    )
+
+    result = AffectedNodePropagator(dependencies).propagate([change])
+
+    a = next(
+        item
+        for item in result.affected_nodes
+        if item.node_id == "a"
+    )
+
+    assert len(a.paths) == 2
+    assert set(a.origin_dependency_ids) == {"bc"}
+    assert set(
+        evidence_id
+        for path in a.paths
+        for evidence_id in path.evidence_ids
+    ) == {"e-ab", "e-bc"}
+
+
+def test_affected_node_propagation_respects_max_depth():
+    from model.dependency import Dependency
+    from analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        DependencyChange,
+    )
+
+    dependencies = [
+        Dependency(
+            dependency_id="ab",
+            source_node_id="a",
+            target_node_id="b",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+        ),
+        Dependency(
+            dependency_id="bc",
+            source_node_id="b",
+            target_node_id="c",
+            relationship_type="SERVICE_DEPENDS_ON_SERVICE",
+            source_type="test",
+        ),
+    ]
+
+    change = DependencyChange(
+        dependency_id="bc",
+        change_type="modified",
+        previous_dependency=dependencies[1],
+        current_dependency=dependencies[1],
+        changed_fields=("target_node_id",),
+        affected_source_node="b",
+        affected_target_node="c",
+        evidence_ids=(),
+    )
+
+    result = AffectedNodePropagator(dependencies).propagate(
+        [change],
+        max_depth=1,
+    )
+
+    assert tuple(
+        item.node_id
+        for item in result.affected_nodes
+    ) == ("b",)

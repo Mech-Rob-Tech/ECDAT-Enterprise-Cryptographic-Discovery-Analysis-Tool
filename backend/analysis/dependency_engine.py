@@ -71,6 +71,14 @@ class DependencyEngine:
     def direct_dependencies(self, node_id: str) -> Tuple[Dependency, ...]:
         return tuple(self._outgoing.get(node_id, ()))
 
+    def dependants(self, node_id: str) -> Tuple[Dependency, ...]:
+        """Return observed dependencies whose target is ``node_id``.
+
+        For an observed dependency A -> B, A depends on B. Therefore B is
+        an upstream change source for A during impact propagation.
+        """
+        return tuple(self._incoming.get(node_id, ()))
+
     def paths(
         self,
         root_node_id: str,
