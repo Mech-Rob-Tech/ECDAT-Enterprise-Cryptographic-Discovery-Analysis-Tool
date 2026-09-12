@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Dict, Iterable, Mapping, Tuple
 
@@ -372,6 +373,40 @@ class DependencyDelta:
     affected_nodes: Tuple[str, ...]
     recompute_nodes: Tuple[str, ...]
     preserved_nodes: Tuple[str, ...]
+
+    def canonical_bytes(self) -> bytes:
+        """Return the deterministic byte representation of this delta."""
+        fields = (
+            ("added", self.added),
+            ("removed", self.removed),
+            ("modified", self.modified),
+            ("unchanged_count", self.unchanged_count),
+            ("affected_nodes", self.affected_nodes),
+            ("recompute_nodes", self.recompute_nodes),
+            ("preserved_nodes", self.preserved_nodes),
+        )
+
+        parts = []
+        for name, value in fields:
+            if isinstance(value, tuple):
+                parts.append(
+                    f"{name}=["
+                    + ",".join(
+                        f"{len(item.encode('utf-8'))}:"
+                        f"{item}"
+                        for item in value
+                    )
+                    + "]"
+                )
+            else:
+                parts.append(f"{name}={value}")
+
+        return "\n".join(parts).encode("utf-8")
+
+    @property
+    def digest(self) -> str:
+        """Return the SHA-256 digest of the canonical delta representation."""
+        return hashlib.sha256(self.canonical_bytes()).hexdigest()
 
 
 def build_dependency_delta(

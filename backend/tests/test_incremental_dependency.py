@@ -1638,3 +1638,245 @@ def test_recompute_and_preserve_order_is_deterministic():
     assert first.preserved_nodes == ("component:a.py",)
 
     assert first == second
+def test_dependency_delta_digest_is_deterministic():
+    from analysis.incremental_dependency import DependencyDelta
+
+    delta = DependencyDelta(
+        added=("dep-b",),
+        removed=("dep-c",),
+        modified=("dep-a",),
+        unchanged_count=2,
+        affected_nodes=("component:a.py", "component:b.py"),
+        recompute_nodes=("component:a.py",),
+        preserved_nodes=("component:b.py",),
+    )
+
+    assert delta.digest == delta.digest
+    assert len(delta.digest) == 64
+    assert all(
+        character in "0123456789abcdef"
+        for character in delta.digest
+    )
+
+
+def test_dependency_delta_digest_matches_sha256_of_canonical_bytes():
+    import hashlib
+
+    from analysis.incremental_dependency import DependencyDelta
+
+    delta = DependencyDelta(
+        added=("dep-a",),
+        removed=(),
+        modified=("dep-b",),
+        unchanged_count=1,
+        affected_nodes=("component:a.py",),
+        recompute_nodes=("component:a.py",),
+        preserved_nodes=(),
+    )
+
+    expected = hashlib.sha256(delta.canonical_bytes()).hexdigest()
+
+    assert delta.digest == expected
+
+
+def test_dependency_delta_digest_is_invariant_to_equivalent_input_order():
+    from analysis.incremental_dependency import DependencyDelta
+
+    first = DependencyDelta(
+        added=("dep-a", "dep-b"),
+        removed=("dep-c",),
+        modified=("dep-d",),
+        unchanged_count=3,
+        affected_nodes=("component:a.py", "component:b.py"),
+        recompute_nodes=("component:a.py",),
+        preserved_nodes=("component:b.py",),
+    )
+
+    second = DependencyDelta(
+        added=("dep-a", "dep-b"),
+        removed=("dep-c",),
+        modified=("dep-d",),
+        unchanged_count=3,
+        affected_nodes=("component:a.py", "component:b.py"),
+        recompute_nodes=("component:a.py",),
+        preserved_nodes=("component:b.py",),
+    )
+
+    assert first.digest == second.digest
+    assert first.canonical_bytes() == second.canonical_bytes()
+
+
+def test_dependency_delta_digest_changes_when_added_changes():
+    from analysis.incremental_dependency import DependencyDelta
+
+    base = DependencyDelta(
+        added=("dep-a",),
+        removed=(),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    changed = DependencyDelta(
+        added=("dep-a", "dep-b"),
+        removed=(),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    assert base.digest != changed.digest
+
+
+def test_dependency_delta_digest_changes_when_removed_changes():
+    from analysis.incremental_dependency import DependencyDelta
+
+    base = DependencyDelta(
+        added=(),
+        removed=("dep-a",),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    changed = DependencyDelta(
+        added=(),
+        removed=("dep-a", "dep-b"),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    assert base.digest != changed.digest
+
+
+def test_dependency_delta_digest_changes_when_modified_changes():
+    from analysis.incremental_dependency import DependencyDelta
+
+    base = DependencyDelta(
+        added=(),
+        removed=(),
+        modified=("dep-a",),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    changed = DependencyDelta(
+        added=(),
+        removed=(),
+        modified=("dep-a", "dep-b"),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    assert base.digest != changed.digest
+
+
+def test_dependency_delta_digest_changes_when_affected_nodes_change():
+    from analysis.incremental_dependency import DependencyDelta
+
+    base = DependencyDelta(
+        added=(),
+        removed=(),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=("component:a.py",),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    changed = DependencyDelta(
+        added=(),
+        removed=(),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=("component:b.py",),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    assert base.digest != changed.digest
+
+
+def test_dependency_delta_digest_changes_when_recompute_or_preserve_changes():
+    from analysis.incremental_dependency import DependencyDelta
+
+    base = DependencyDelta(
+        added=(),
+        removed=(),
+        modified=(),
+        unchanged_count=1,
+        affected_nodes=(),
+        recompute_nodes=("component:a.py",),
+        preserved_nodes=("component:b.py",),
+    )
+
+    recompute_changed = DependencyDelta(
+        added=(),
+        removed=(),
+        modified=(),
+        unchanged_count=1,
+        affected_nodes=(),
+        recompute_nodes=("component:b.py",),
+        preserved_nodes=("component:a.py",),
+    )
+
+    assert base.digest != recompute_changed.digest
+
+
+def test_dependency_delta_canonical_bytes_are_utf8_and_stable():
+    from analysis.incremental_dependency import DependencyDelta
+
+    delta = DependencyDelta(
+        added=("dep-α",),
+        removed=(),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=("component:日本.py",),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    canonical = delta.canonical_bytes()
+
+    assert isinstance(canonical, bytes)
+    assert canonical == delta.canonical_bytes()
+    assert b"dep-" in canonical
+
+def test_dependency_delta_canonicalization_distinguishes_structural_values():
+    from analysis.incremental_dependency import DependencyDelta
+
+    first = DependencyDelta(
+        added=("a,b",),
+        removed=(),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    second = DependencyDelta(
+        added=("a", "b"),
+        removed=(),
+        modified=(),
+        unchanged_count=0,
+        affected_nodes=(),
+        recompute_nodes=(),
+        preserved_nodes=(),
+    )
+
+    assert first.canonical_bytes() != second.canonical_bytes()
+    assert first.digest != second.digest
