@@ -41,6 +41,12 @@ from storage.verification_history import (
     save_verification,
 )
 
+from ai.api import (
+    ai_explain,
+    ai_query,
+    ai_summary,
+)
+
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -142,13 +148,29 @@ async def scan(request: Request):
                 "generated_at": scan_state.generated_at,
                 "target": scan_state.target,
                 "artifact_ids": scan_state.artifact_ids,
-   	        "canonical_artifacts": scan_state.canonical_artifacts,
+                "canonical_artifacts": scan_state.canonical_artifacts,
                 "evidence": scan_state.evidence,
                 "business_contexts": scan_state.business_contexts,
                 "relationships": scan_state.relationships,
                 "risk_landscape": scan_state.risk_landscape,
                 "summary": scan_state.summary,
                 "metadata": scan_state.metadata,
+
+                "recommendations": report.get(
+                    "recommendations",
+                    [],
+                ),
+                "migration_options": report.get(
+                    "migration_options",
+                    [],
+                ),
+                "verification": report.get(
+                    "verification",
+                    [],
+                ),
+                "knowledge_snapshot": (
+                    scan_state.knowledge_snapshot
+                ),
             }
         )
 
@@ -1465,6 +1487,21 @@ async def knowledge_resolve(request: Request):
     )
 
 routes = [
+    Route(
+        "/ai/query",
+        ai_query,
+        methods=["POST"],
+    ),
+    Route(
+        "/ai/explain",
+        ai_explain,
+        methods=["POST"],
+    ),
+    Route(
+        "/ai/summary",
+        ai_summary,
+        methods=["POST"],
+    ),
     Route(
         "/health",
         health,
