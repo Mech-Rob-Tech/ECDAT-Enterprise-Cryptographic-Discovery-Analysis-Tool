@@ -110,6 +110,13 @@ def test_dependency_snapshots_are_version_isolated():
             "library:pqc",
         ]
 
+        session.execute(
+            delete(NodeRecord).where(
+                NodeRecord.node_id.in_(node_ids)
+            )
+        )
+        session.flush()
+
         session.add_all(
             [
                 NodeRecord(
