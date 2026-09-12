@@ -499,6 +499,101 @@ class PropagationResult:
 
     affected_nodes: Tuple[AffectedNode, ...]
     paths: Tuple[PropagationPath, ...]
+    suspensions: Tuple[ConditionalImpactSuspension, ...] = ()
+
+
+@dataclass(frozen=True)
+class ConditionalImpactResult:
+    """Deterministic result of evaluating dependency conditions."""
+
+    dependency_id: str
+    decision: str
+    matched_conditions: Tuple[Tuple[str, str], ...]
+    blocking_conditions: Tuple[Tuple[str, str], ...]
+    unresolved_conditions: Tuple[Tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
+class ConditionalImpactSuspension:
+    """Immutable record for an unresolved conditional dependency."""
+
+    dependency_id: str
+    unresolved_conditions: Tuple[Tuple[str, str], ...]
+    matched_conditions: Tuple[Tuple[str, str], ...]
+    evidence_ids: Tuple[str, ...]
+
+
+class ConditionalImpactEvaluator:
+    """Evaluate explicit dependency conditions against structural context.
+
+    Conditions use exact key/value equality and deterministic AND semantics.
+
+    Decision semantics:
+
+    ACTIVE:
+        Every condition is present and matches.
+
+    BLOCKED:
+        At least one condition is present but does not match.
+
+    UNRESOLVED:
+        No condition is blocked, but at least one required condition is
+        missing from the supplied context.
+
+    The evaluator is intentionally data-blind. It only examines the supplied
+    condition and context metadata.
+    """
+
+    ACTIVE = "ACTIVE"
+    BLOCKED = "BLOCKED"
+    UNRESOLVED = "UNRESOLVED"
+
+    def evaluate(
+        self,
+        dependency_id: str,
+        conditions: Tuple[Tuple[str, str], ...],
+        context: dict[str, str],
+    ) -> ConditionalImpactResult:
+        normalized_conditions = tuple(
+            sorted(
+                (str(key), str(value))
+                for key, value in conditions
+            )
+        )
+
+        normalized_context = {
+            str(key): str(value)
+            for key, value in context.items()
+        }
+
+        matched = []
+        blocking = []
+        unresolved = []
+
+        for key, expected_value in normalized_conditions:
+            actual_value = normalized_context.get(key)
+
+            if actual_value is None:
+                unresolved.append((key, expected_value))
+            elif actual_value == expected_value:
+                matched.append((key, expected_value))
+            else:
+                blocking.append((key, expected_value))
+
+        if blocking:
+            decision = self.BLOCKED
+        elif unresolved:
+            decision = self.UNRESOLVED
+        else:
+            decision = self.ACTIVE
+
+        return ConditionalImpactResult(
+            dependency_id=str(dependency_id),
+            decision=decision,
+            matched_conditions=tuple(matched),
+            blocking_conditions=tuple(blocking),
+            unresolved_conditions=tuple(unresolved),
+        )
 
 
 class AffectedNodePropagator:
@@ -532,9 +627,19 @@ class AffectedNodePropagator:
         changes: Iterable[DependencyChange],
         *,
         max_depth: int | None = None,
+        conditions_by_dependency: dict[
+            str, Tuple[Tuple[str, str], ...]
+        ] | None = None,
+        context: dict[str, str] | None = None,
     ) -> PropagationResult:
         if max_depth is not None and max_depth < 1:
-            return PropagationResult((), ())
+            return PropagationResult((), (), ())
+
+        conditions_by_dependency = conditions_by_dependency or {}
+        context = context or {}
+
+        conditional_evaluator = ConditionalImpactEvaluator()
+        suspensions = []
 
         queue = []
 
@@ -585,6 +690,33 @@ class AffectedNodePropagator:
                 continue
 
             for dependency in self._engine.dependants(current_node):
+                conditions = conditions_by_dependency.get(
+                    dependency.dependency_id,
+                    (),
+                )
+
+                impact = conditional_evaluator.evaluate(
+                    dependency_id=dependency.dependency_id,
+                    conditions=conditions,
+                    context=context,
+                )
+
+                if impact.decision == ConditionalImpactEvaluator.BLOCKED:
+                    continue
+
+                if impact.decision == ConditionalImpactEvaluator.UNRESOLVED:
+                    suspensions.append(
+                        ConditionalImpactSuspension(
+                            dependency_id=dependency.dependency_id,
+                            unresolved_conditions=impact.unresolved_conditions,
+                            matched_conditions=impact.matched_conditions,
+                            evidence_ids=tuple(
+                                sorted(set(dependency.evidence_ids))
+                            ),
+                        )
+                    )
+                    continue
+
                 next_node = dependency.source_node_id
 
                 if next_node in node_ids:
@@ -761,4 +893,15 @@ class AffectedNodePropagator:
         return PropagationResult(
             affected_nodes=tuple(affected_nodes),
             paths=unique_paths,
+            suspensions=tuple(
+                sorted(
+                    set(suspensions),
+                    key=lambda suspension: (
+                        suspension.dependency_id,
+                        suspension.unresolved_conditions,
+                        suspension.matched_conditions,
+                        suspension.evidence_ids,
+                    ),
+                )
+            ),
         )

@@ -743,3 +743,626 @@ def test_affected_node_propagation_respects_max_depth():
         item.node_id
         for item in result.affected_nodes
     ) == ("b",)
+
+
+# ---------------------------------------------------------------------------
+# 3C.4 — Conditional Impact
+# ---------------------------------------------------------------------------
+
+def test_conditional_impact_unconditional_dependency_is_active():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(),
+        context={},
+    )
+
+    assert result.decision == "ACTIVE"
+    assert result.matched_conditions == ()
+    assert result.blocking_conditions == ()
+    assert result.unresolved_conditions == ()
+
+
+def test_conditional_impact_matching_condition_is_active():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(
+            ("environment", "production"),
+        ),
+        context={
+            "environment": "production",
+        },
+    )
+
+    assert result.decision == "ACTIVE"
+    assert result.matched_conditions == (
+        ("environment", "production"),
+    )
+    assert result.blocking_conditions == ()
+    assert result.unresolved_conditions == ()
+
+
+def test_conditional_impact_failing_condition_is_blocked():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(
+            ("environment", "production"),
+        ),
+        context={
+            "environment": "development",
+        },
+    )
+
+    assert result.decision == "BLOCKED"
+    assert result.matched_conditions == ()
+    assert result.blocking_conditions == (
+        ("environment", "production"),
+    )
+    assert result.unresolved_conditions == ()
+
+
+def test_conditional_impact_missing_context_is_unresolved():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(
+            ("jurisdiction", "IN"),
+        ),
+        context={
+            "environment": "production",
+        },
+    )
+
+    assert result.decision == "UNRESOLVED"
+    assert result.matched_conditions == ()
+    assert result.blocking_conditions == ()
+    assert result.unresolved_conditions == (
+        ("jurisdiction", "IN"),
+    )
+
+
+def test_conditional_impact_multiple_conditions_use_and_semantics():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(
+            ("environment", "production"),
+            ("jurisdiction", "IN"),
+            ("security_tier", "restricted"),
+        ),
+        context={
+            "environment": "production",
+            "jurisdiction": "IN",
+            "security_tier": "restricted",
+        },
+    )
+
+    assert result.decision == "ACTIVE"
+    assert result.matched_conditions == (
+        ("environment", "production"),
+        ("jurisdiction", "IN"),
+        ("security_tier", "restricted"),
+    )
+
+
+def test_conditional_impact_missing_condition_does_not_become_blocked():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(
+            ("environment", "production"),
+            ("jurisdiction", "IN"),
+        ),
+        context={
+            "environment": "production",
+        },
+    )
+
+    assert result.decision == "UNRESOLVED"
+    assert result.matched_conditions == (
+        ("environment", "production"),
+    )
+    assert result.blocking_conditions == ()
+    assert result.unresolved_conditions == (
+        ("jurisdiction", "IN"),
+    )
+
+
+def test_conditional_impact_blocked_and_unresolved_are_distinct():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    blocked = evaluator.evaluate(
+        dependency_id="dep-blocked",
+        conditions=(("environment", "production"),),
+        context={"environment": "development"},
+    )
+
+    unresolved = evaluator.evaluate(
+        dependency_id="dep-unresolved",
+        conditions=(("jurisdiction", "IN"),),
+        context={"environment": "production"},
+    )
+
+    assert blocked.decision == "BLOCKED"
+    assert unresolved.decision == "UNRESOLVED"
+    assert blocked.blocking_conditions
+    assert not blocked.unresolved_conditions
+    assert unresolved.unresolved_conditions
+    assert not unresolved.blocking_conditions
+
+
+def test_conditional_impact_result_is_deterministic():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result_a = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(
+            ("security_tier", "restricted"),
+            ("environment", "production"),
+            ("jurisdiction", "IN"),
+        ),
+        context={
+            "jurisdiction": "IN",
+            "environment": "production",
+            "security_tier": "restricted",
+        },
+    )
+
+    result_b = evaluator.evaluate(
+        dependency_id="dep-ab",
+        conditions=(
+            ("jurisdiction", "IN"),
+            ("security_tier", "restricted"),
+            ("environment", "production"),
+        ),
+        context={
+            "security_tier": "restricted",
+            "jurisdiction": "IN",
+            "environment": "production",
+        },
+    )
+
+    assert result_a == result_b
+
+
+def test_conditional_impact_blocked_edge_does_not_propagate():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(("environment", "production"),),
+        context={"environment": "development"},
+    )
+
+    assert result.decision == "BLOCKED"
+
+    # A BLOCKED dependency is known to be inapplicable.
+    assert result.decision != "ACTIVE"
+
+
+def test_conditional_impact_unresolved_edge_does_not_propagate_now():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(("jurisdiction", "IN"),),
+        context={"environment": "production"},
+    )
+
+    assert result.decision == "UNRESOLVED"
+
+    # UNRESOLVED is not permission to propagate.
+    assert result.decision != "ACTIVE"
+
+
+def test_conditional_impact_unresolved_state_retains_required_condition():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(
+            ("environment", "production"),
+            ("jurisdiction", "IN"),
+        ),
+        context={"environment": "production"},
+    )
+
+    assert result.decision == "UNRESOLVED"
+    assert result.unresolved_conditions == (
+        ("jurisdiction", "IN"),
+    )
+
+
+def test_conditional_impact_unresolved_becomes_active_when_context_arrives():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    unresolved = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(("jurisdiction", "IN"),),
+        context={},
+    )
+
+    resolved = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(("jurisdiction", "IN"),),
+        context={"jurisdiction": "IN"},
+    )
+
+    assert unresolved.decision == "UNRESOLVED"
+    assert resolved.decision == "ACTIVE"
+    assert unresolved.dependency_id == resolved.dependency_id
+
+
+def test_conditional_impact_propagation_active_edge_reaches_dependants():
+    from backend.analysis.dependency_engine import DependencyEngine
+    from backend.analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        ConditionalImpactEvaluator,
+        DependencyChange,
+    )
+    from backend.model.dependency import Dependency
+
+    dependencies = (
+        Dependency(
+            dependency_id="dep-ab",
+            source_node_id="a",
+            target_node_id="b",
+            relationship_type="depends_on",
+            evidence_ids=("e-ab",),
+        ),
+        Dependency(
+            dependency_id="dep-bc",
+            source_node_id="b",
+            target_node_id="c",
+            relationship_type="depends_on",
+            evidence_ids=("e-bc",),
+        ),
+    )
+
+    change = DependencyChange(
+        dependency_id="dep-bc",
+        change_type="modified",
+        previous_dependency=dependencies[1],
+        current_dependency=dependencies[1],
+        changed_fields=("confidence",),
+        affected_source_node="b",
+        affected_target_node="c",
+        evidence_ids=("e-bc",),
+    )
+
+    impact = ConditionalImpactEvaluator().evaluate(
+        dependency_id="dep-bc",
+        conditions=(("environment", "production"),),
+        context={"environment": "production"},
+    )
+
+    assert impact.decision == "ACTIVE"
+
+    result = AffectedNodePropagator(
+        dependencies,
+    ).propagate(
+        (change,),
+    )
+
+    assert [node.node_id for node in result.affected_nodes] == [
+        "b",
+        "a",
+    ]
+
+
+def test_conditional_impact_blocked_edge_is_not_used_for_propagation():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    impact = ConditionalImpactEvaluator().evaluate(
+        dependency_id="dep-bc",
+        conditions=(("environment", "production"),),
+        context={"environment": "development"},
+    )
+
+    assert impact.decision == "BLOCKED"
+
+    # The conditional layer explicitly denies traversal.
+    assert impact.decision != "ACTIVE"
+
+
+def test_conditional_impact_unresolved_edge_is_not_used_for_propagation():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    impact = ConditionalImpactEvaluator().evaluate(
+        dependency_id="dep-bc",
+        conditions=(("jurisdiction", "IN"),),
+        context={},
+    )
+
+    assert impact.decision == "UNRESOLVED"
+
+    # Unknown is not equivalent to permission to propagate.
+    assert impact.decision != "ACTIVE"
+
+
+def test_conditional_impact_unresolved_edge_can_be_re_evaluated():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    suspended = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(("jurisdiction", "IN"),),
+        context={},
+    )
+
+    resumed = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(("jurisdiction", "IN"),),
+        context={"jurisdiction": "IN"},
+    )
+
+    assert suspended.decision == "UNRESOLVED"
+    assert suspended.unresolved_conditions == (
+        ("jurisdiction", "IN"),
+    )
+
+    assert resumed.decision == "ACTIVE"
+    assert resumed.unresolved_conditions == ()
+    assert resumed.matched_conditions == (
+        ("jurisdiction", "IN"),
+    )
+
+
+def test_conditional_impact_unresolved_result_can_form_suspension():
+    from backend.analysis.incremental_dependency import (
+        ConditionalImpactEvaluator,
+        ConditionalImpactSuspension,
+    )
+
+    evaluator = ConditionalImpactEvaluator()
+
+    result = evaluator.evaluate(
+        dependency_id="dep-bc",
+        conditions=(
+            ("environment", "production"),
+            ("jurisdiction", "IN"),
+        ),
+        context={
+            "environment": "production",
+        },
+    )
+
+    suspension = ConditionalImpactSuspension(
+        dependency_id=result.dependency_id,
+        unresolved_conditions=result.unresolved_conditions,
+        matched_conditions=result.matched_conditions,
+        evidence_ids=("e-bc",),
+    )
+
+    assert suspension.dependency_id == "dep-bc"
+    assert suspension.unresolved_conditions == (
+        ("jurisdiction", "IN"),
+    )
+    assert suspension.matched_conditions == (
+        ("environment", "production"),
+    )
+    assert suspension.evidence_ids == ("e-bc",)
+
+
+def test_conditional_propagation_active_crosses_edge():
+    from backend.analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        DependencyChange,
+    )
+    from backend.model.dependency import Dependency
+
+    dependencies = (
+        Dependency(
+            dependency_id="dep-ab",
+            source_node_id="a",
+            target_node_id="b",
+            relationship_type="depends_on",
+            evidence_ids=("e-ab",),
+        ),
+        Dependency(
+            dependency_id="dep-bc",
+            source_node_id="b",
+            target_node_id="c",
+            relationship_type="depends_on",
+            evidence_ids=("e-bc",),
+        ),
+    )
+
+    change = DependencyChange(
+        dependency_id="dep-bc",
+        change_type="modified",
+        previous_dependency=dependencies[1],
+        current_dependency=dependencies[1],
+        changed_fields=("confidence",),
+        affected_source_node="b",
+        affected_target_node="c",
+        evidence_ids=("e-bc",),
+    )
+
+    result = AffectedNodePropagator(dependencies).propagate(
+        (change,),
+        conditions_by_dependency={
+            "dep-bc": (("environment", "production"),),
+        },
+        context={
+            "environment": "production",
+        },
+    )
+
+    assert [node.node_id for node in result.affected_nodes] == [
+        "b",
+        "a",
+    ]
+    assert result.suspensions == ()
+
+
+def test_conditional_propagation_blocked_cuts_edge():
+    from backend.analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        DependencyChange,
+    )
+    from backend.model.dependency import Dependency
+
+    dependencies = (
+        Dependency(
+            dependency_id="dep-ab",
+            source_node_id="a",
+            target_node_id="b",
+            relationship_type="depends_on",
+            evidence_ids=("e-ab",),
+        ),
+        Dependency(
+            dependency_id="dep-bc",
+            source_node_id="b",
+            target_node_id="c",
+            relationship_type="depends_on",
+            evidence_ids=("e-bc",),
+        ),
+    )
+
+    change = DependencyChange(
+        dependency_id="dep-bc",
+        change_type="modified",
+        previous_dependency=dependencies[1],
+        current_dependency=dependencies[1],
+        changed_fields=("confidence",),
+        affected_source_node="b",
+        affected_target_node="c",
+        evidence_ids=("e-bc",),
+    )
+
+    result = AffectedNodePropagator(dependencies).propagate(
+        (change,),
+        conditions_by_dependency={
+            "dep-bc": (("environment", "production"),),
+        },
+        context={
+            "environment": "development",
+        },
+    )
+
+    assert result.affected_nodes == ()
+    assert result.paths == ()
+    assert result.suspensions == ()
+
+
+def test_conditional_propagation_unresolved_suspends_edge():
+    from backend.analysis.incremental_dependency import (
+        AffectedNodePropagator,
+        ConditionalImpactSuspension,
+        DependencyChange,
+    )
+    from backend.model.dependency import Dependency
+
+    dependencies = (
+        Dependency(
+            dependency_id="dep-ab",
+            source_node_id="a",
+            target_node_id="b",
+            relationship_type="depends_on",
+            evidence_ids=("e-ab",),
+        ),
+        Dependency(
+            dependency_id="dep-bc",
+            source_node_id="b",
+            target_node_id="c",
+            relationship_type="depends_on",
+            evidence_ids=("e-bc",),
+        ),
+    )
+
+    change = DependencyChange(
+        dependency_id="dep-bc",
+        change_type="modified",
+        previous_dependency=dependencies[1],
+        current_dependency=dependencies[1],
+        changed_fields=("confidence",),
+        affected_source_node="b",
+        affected_target_node="c",
+        evidence_ids=("e-bc",),
+    )
+
+    result = AffectedNodePropagator(dependencies).propagate(
+        (change,),
+        conditions_by_dependency={
+            "dep-bc": (("jurisdiction", "IN"),),
+        },
+        context={},
+    )
+
+    assert result.affected_nodes == ()
+    assert result.paths == ()
+
+    assert result.suspensions == (
+        ConditionalImpactSuspension(
+            dependency_id="dep-bc",
+            unresolved_conditions=(
+                ("jurisdiction", "IN"),
+            ),
+            matched_conditions=(),
+            evidence_ids=("e-bc",),
+        ),
+    )
