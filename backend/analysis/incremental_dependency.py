@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable, Mapping, Tuple
+
+from backend.model.dependency import Dependency
 
 
 @dataclass(frozen=True)
@@ -905,3 +907,233 @@ class AffectedNodePropagator:
                 )
             ),
         )
+
+# ---------------------------------------------------------------------------
+# 3C.5 — Affected Subgraph
+# ---------------------------------------------------------------------------
+#
+# This layer is intentionally a projection/materialization step.
+#
+# It consumes PropagationResult produced by 3C.3/3C.4 and does NOT:
+#   - perform traversal
+#   - evaluate conditional impact
+#   - recompute dependencies
+#   - decide recompute/preserve
+#   - calculate structural digests
+#   - mutate dependency state
+#
+# Those responsibilities belong to other stages.
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class AffectedSubgraph:
+    """
+    Deterministic analytical projection of an affected dependency region.
+
+    The subgraph is derived from an already-computed PropagationResult.
+
+    dependency_ids:
+        Dependency observations actually traversed by propagation.
+
+    boundary_dependency_ids:
+        Known dependency observations having exactly one endpoint inside
+        the affected node set. Boundary edges are retained separately so
+        they cannot be mistaken for propagated/internal edges.
+
+    suspended_dependency_ids:
+        Dependencies whose propagation was suspended by the conditional
+        impact layer, e.g. UNRESOLVED conditions.
+
+    This model is descriptive only. It does not make recomputation,
+    preservation, risk, or migration decisions.
+    """
+
+    root_node_ids: tuple[str, ...]
+    affected_nodes: tuple["AffectedNode", ...]
+    dependency_ids: tuple[str, ...]
+    boundary_dependency_ids: tuple[str, ...]
+    suspended_dependency_ids: tuple[str, ...] = ()
+    evidence_ids: tuple[str, ...] = ()
+    max_depth: int = 0
+
+    def __post_init__(self) -> None:
+        if tuple(sorted(set(self.root_node_ids))) != self.root_node_ids:
+            raise ValueError("root_node_ids must be sorted and unique")
+
+        affected_ids = tuple(node.node_id for node in self.affected_nodes)
+
+        if len(set(affected_ids)) != len(affected_ids):
+            raise ValueError("affected_nodes must contain unique node IDs")
+
+        if affected_ids != tuple(
+            sorted(affected_ids, key=lambda node_id: node_id)
+        ):
+            raise ValueError("affected_nodes must be sorted by node_id")
+
+        for value_name, values in (
+            ("dependency_ids", self.dependency_ids),
+            ("boundary_dependency_ids", self.boundary_dependency_ids),
+            ("suspended_dependency_ids", self.suspended_dependency_ids),
+            ("evidence_ids", self.evidence_ids),
+        ):
+            if tuple(sorted(set(values))) != values:
+                raise ValueError(
+                    f"{value_name} must be sorted and unique"
+                )
+
+        # A dependency may legitimately be both:
+        #   1. represented/traversed by propagation, and
+        #   2. a boundary edge crossing the affected-node set.
+        #
+        # Therefore dependency_ids and boundary_dependency_ids are NOT
+        # mutually exclusive sets.
+
+        if not set(self.root_node_ids).issubset(set(affected_ids)):
+            raise ValueError(
+                "root_node_ids must be a subset of affected node IDs"
+            )
+
+        if not set(self.suspended_dependency_ids).issubset(
+            set(self.boundary_dependency_ids)
+        ):
+            raise ValueError(
+                "suspended dependencies must be boundary dependencies"
+            )
+
+        if self.max_depth < 0:
+            raise ValueError("max_depth must be >= 0")
+
+        observed_max_depth = max(
+            (node.depth for node in self.affected_nodes),
+            default=0,
+        )
+
+        if self.max_depth != observed_max_depth:
+            raise ValueError(
+                "max_depth must equal the maximum affected-node depth"
+            )
+
+    @property
+    def node_ids(self) -> tuple[str, ...]:
+        """Canonical affected node IDs."""
+        return tuple(node.node_id for node in self.affected_nodes)
+
+    @property
+    def node_count(self) -> int:
+        return len(self.affected_nodes)
+
+    @property
+    def dependency_count(self) -> int:
+        return len(self.dependency_ids)
+
+    @property
+    def boundary_count(self) -> int:
+        return len(self.boundary_dependency_ids)
+
+    @property
+    def evidence_count(self) -> int:
+        return len(self.evidence_ids)
+
+
+def build_affected_subgraph(
+    propagation: "PropagationResult",
+    dependencies: Iterable[Dependency],
+) -> AffectedSubgraph:
+    """
+    Materialize an AffectedSubgraph from an existing PropagationResult.
+
+    The function performs no graph traversal.
+
+    `dependencies` is the dependency observation universe available to the
+    caller. For historical/removed-edge analysis, callers may provide the
+    union of the relevant previous and current dependency observations.
+
+    Determinism:
+        - nodes are sorted by node_id
+        - dependency IDs are sorted lexicographically
+        - evidence IDs are sorted lexicographically
+        - roots are sorted lexicographically
+        - boundary edges are sorted lexicographically
+    """
+
+    affected_nodes = tuple(
+        sorted(
+            propagation.affected_nodes,
+            key=lambda node: node.node_id,
+        )
+    )
+
+    node_ids = {
+        node.node_id
+        for node in affected_nodes
+    }
+
+    root_node_ids = {
+        path.node_ids[0]
+        for path in propagation.paths
+        if path.node_ids
+    }
+
+    dependency_ids = {
+        dependency_id
+        for path in propagation.paths
+        for dependency_id in path.dependency_ids
+    }
+
+    evidence_ids = {
+        evidence_id
+        for path in propagation.paths
+        for evidence_id in path.evidence_ids
+    }
+
+    dependency_map: Mapping[str, Dependency] = {
+        dependency.dependency_id: dependency
+        for dependency in dependencies
+    }
+
+    boundary_dependency_ids: set[str] = set()
+
+    for dependency in dependency_map.values():
+        source_inside = dependency.source_node_id in node_ids
+        target_inside = dependency.target_node_id in node_ids
+
+        # Exactly one endpoint is inside the affected region.
+        if source_inside ^ target_inside:
+            boundary_dependency_ids.add(
+                dependency.dependency_id
+            )
+
+    suspended_dependency_ids = {
+        suspension.dependency_id
+        for suspension in propagation.suspensions
+    }
+
+    # Suspensions represent propagation boundaries. If the corresponding
+    # dependency is available in the supplied observation universe, it must
+    # be represented as a boundary edge.
+    boundary_dependency_ids.update(
+        suspended_dependency_ids
+        & set(dependency_map)
+    )
+
+    max_depth = max(
+        (node.depth for node in affected_nodes),
+        default=0,
+    )
+
+    return AffectedSubgraph(
+        root_node_ids=tuple(sorted(root_node_ids)),
+        affected_nodes=affected_nodes,
+        dependency_ids=tuple(sorted(dependency_ids)),
+        boundary_dependency_ids=tuple(
+            sorted(boundary_dependency_ids)
+        ),
+        suspended_dependency_ids=tuple(
+            sorted(
+                suspended_dependency_ids
+                & boundary_dependency_ids
+            )
+        ),
+        evidence_ids=tuple(sorted(evidence_ids)),
+        max_depth=max_depth,
+    )
