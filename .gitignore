@@ -21,3 +21,53 @@ out/
 Thumbs.db
 .vscode/
 .idea/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+*.credentials
+credentials.json
+secrets.json
+
+# Certificates / private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Python tooling / test caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local databases / runtime state
+*.sqlite
+*.sqlite3
+*.db
+
+# Local runtime / temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# Benchmark-generated local output
+*.prof
+*.lprof
+*.coverage
+benchmark-results/
+perf-results/
+
+# Frontend local environment
+frontend/.env*
+web/.env*
