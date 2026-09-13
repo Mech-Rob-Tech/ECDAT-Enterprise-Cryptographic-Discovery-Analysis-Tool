@@ -32,6 +32,9 @@ def build_scan_state(report: Dict[str, Any]) -> ScanState:
     relationships = (
         report.get("relationships", []) or []
     )
+    dependencies = (
+        report.get("dependencies", []) or []
+    )
 
     application_ids = [
         str(application.get("application_id"))
@@ -71,6 +74,7 @@ def build_scan_state(report: Dict[str, Any]) -> ScanState:
         evidence=evidence,
         business_contexts=business_contexts,
         relationships=relationships,
+        dependencies=dependencies,
         risk_landscape=(
             report.get("risk_landscape", {}) or {}
         ),

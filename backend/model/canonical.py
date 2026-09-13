@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from analysis.mosca import calculate_mosca_risk
@@ -6,6 +7,9 @@ from analysis.recommendations import (
     build_recommendation as build_knowledge_recommendation,
 )
 from analysis.quantum_risk import assess_quantum_risk
+from analysis.dependency_discovery import (
+    discover_repository_dependencies,
+)
 
 from model.identity import (
     build_artifact_id,
@@ -1089,6 +1093,19 @@ def build_canonical_scan(
         business_contexts=business_contexts,
     )
 
+    dependencies = []
+
+    if target:
+        repository_path = Path(target).expanduser()
+
+        if repository_path.exists() and repository_path.is_dir():
+            dependencies = list(
+                discover_repository_dependencies(
+                    repository_path,
+                    application_id=application.application_id,
+                )
+            )
+
     risk_summary = dict(
         scan_results.get(
             "risk_summary",
@@ -1140,6 +1157,7 @@ def build_canonical_scan(
         components=components,
         artifacts=artifacts,
         evidence=evidence_objects,
+        dependencies=dependencies,
         relationships=relationships,
         risk_assessments=(
             risk_assessments

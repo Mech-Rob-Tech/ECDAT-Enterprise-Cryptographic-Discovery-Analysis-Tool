@@ -1,0 +1,37 @@
+digraph ECDAT_3C9_OVERVIEW {
+    graph [rankdir=LR, bgcolor="white", labelloc="t", label="ECDAT v0.6 — 3C.9 — 1,000-node chain overview"];
+    node [shape=box, style="rounded"];
+    "n0" [label="n0"];
+    "n1" [label="n1"];
+    "n2" [label="n2"];
+    "n3" [label="n3"];
+    "n4" [label="n4"];
+    "n5" [label="n5"];
+    "n6" [label="n6"];
+    "n7" [label="n7"];
+    "collapsed" [label="⋮\n984 middle nodes\ncollapsed", shape=box];
+    "n992" [label="n992"];
+    "n993" [label="n993"];
+    "n994" [label="n994"];
+    "n995" [label="n995"];
+    "n996" [label="n996"];
+    "n997" [label="n997"];
+    "n998" [label="n998"];
+    "n999" [label="n999"];
+    "n0" -> "n1";
+    "n1" -> "n2";
+    "n2" -> "n3";
+    "n3" -> "n4";
+    "n4" -> "n5";
+    "n5" -> "n6";
+    "n6" -> "n7";
+    "n7" -> "collapsed";
+    "n992" -> "n993";
+    "n993" -> "n994";
+    "n994" -> "n995";
+    "n995" -> "n996";
+    "n996" -> "n997";
+    "n997" -> "n998";
+    "n998" -> "n999";
+    "collapsed" -> "n992";
+}
