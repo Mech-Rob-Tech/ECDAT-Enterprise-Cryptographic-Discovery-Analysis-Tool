@@ -55,11 +55,10 @@ jobs:
         run: python -m compileall -q .
 
       - name: Apply database migrations
-        working-directory: backend
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
           ECDAT_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/ecdat_test
-        run: python -m alembic -c alembic.ini upgrade head
+        run: python -m alembic -c backend/alembic.ini upgrade head
 
       - name: Run backend tests
         env:
