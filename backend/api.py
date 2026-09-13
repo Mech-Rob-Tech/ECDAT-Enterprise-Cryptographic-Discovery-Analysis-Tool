@@ -25,6 +25,10 @@ from analysis.report_builder import build_report
 from analysis.risk_landscape import build_risk_landscape
 from model.scan_state_builder import build_scan_state
 from analysis.scan_diff import build_scan_diff
+from analysis.dependency_service import (
+    DependencyNotFoundError,
+    DependencyService,
+)
 from analysis.verification import (
     build_verification,
     verification_to_dict,
@@ -146,6 +150,7 @@ async def scan(request: Request):
                 "evidence": scan_state.evidence,
                 "business_contexts": scan_state.business_contexts,
                 "relationships": scan_state.relationships,
+                "dependencies": scan_state.dependencies,
                 "risk_landscape": scan_state.risk_landscape,
                 "summary": scan_state.summary,
                 "metadata": scan_state.metadata,
@@ -243,6 +248,384 @@ async def risk_landscape(request: Request):
             },
             status_code=500,
         )
+
+def _load_dependency_service(scan_id: str):
+    """Build a dependency service from one immutable historical scan."""
+
+    scan_state = load_scan_state(scan_id)
+
+    if scan_state is None:
+        return None, None
+
+    dependencies = scan_state.get(
+        "dependencies",
+        [],
+    ) or []
+
+    service = DependencyService.from_dicts(dependencies)
+
+    return scan_state, service
+
+
+async def dependencies(request: Request):
+    """Return observed dependency facts for one historical scan."""
+
+    scan_id = str(
+        request.query_params.get(
+            "scan_id",
+            "",
+        )
+    ).strip()
+
+    if not scan_id:
+        return JSONResponse(
+            {
+                "error": "scan_id is required.",
+            },
+            status_code=400,
+        )
+
+    scan_state, service = _load_dependency_service(
+        scan_id
+    )
+
+    if scan_state is None:
+        return JSONResponse(
+            {
+                "error": "Scan not found.",
+                "scan_id": scan_id,
+            },
+            status_code=404,
+        )
+
+    source_node_id = (
+        request.query_params.get("source_node_id")
+        or None
+    )
+    target_node_id = (
+        request.query_params.get("target_node_id")
+        or None
+    )
+    relationship_type = (
+        request.query_params.get("relationship_type")
+        or None
+    )
+
+    records = service.list_dependencies(
+        source_node_id=source_node_id,
+        target_node_id=target_node_id,
+        relationship_type=relationship_type,
+    )
+
+    return JSONResponse(
+        {
+            "scan_id": scan_id,
+            "dependencies": [
+                item.__dict__
+                for item in records
+            ],
+            "total": len(records),
+        }
+    )
+
+
+async def dependency_detail(request: Request):
+    """Return one observed dependency from one historical scan."""
+
+    scan_id = str(
+        request.query_params.get(
+            "scan_id",
+            "",
+        )
+    ).strip()
+
+    dependency_id = str(
+        request.path_params.get(
+            "dependency_id",
+            "",
+        )
+    ).strip()
+
+    if not scan_id:
+        return JSONResponse(
+            {
+                "error": "scan_id is required.",
+            },
+            status_code=400,
+        )
+
+    if not dependency_id:
+        return JSONResponse(
+            {
+                "error": "dependency_id is required.",
+            },
+            status_code=400,
+        )
+
+    scan_state, service = _load_dependency_service(
+        scan_id
+    )
+
+    if scan_state is None:
+        return JSONResponse(
+            {
+                "error": "Scan not found.",
+                "scan_id": scan_id,
+            },
+            status_code=404,
+        )
+
+    try:
+        dependency = service.get_dependency(
+            dependency_id
+        )
+    except DependencyNotFoundError:
+        return JSONResponse(
+            {
+                "error": "Dependency not found.",
+                "dependency_id": dependency_id,
+                "scan_id": scan_id,
+            },
+            status_code=404,
+        )
+
+    return JSONResponse(
+        {
+            "scan_id": scan_id,
+            "dependency": dependency.__dict__,
+        }
+    )
+
+
+async def dependency_closure(request: Request):
+    """Return deterministic dependency closure for one node."""
+
+    scan_id = str(
+        request.query_params.get(
+            "scan_id",
+            "",
+        )
+    ).strip()
+
+    node_id = str(
+        request.path_params.get(
+            "node_id",
+            "",
+        )
+    ).strip()
+
+    if not scan_id:
+        return JSONResponse(
+            {
+                "error": "scan_id is required.",
+            },
+            status_code=400,
+        )
+
+    if not node_id:
+        return JSONResponse(
+            {
+                "error": "node_id is required.",
+            },
+            status_code=400,
+        )
+
+    scan_state, service = _load_dependency_service(
+        scan_id
+    )
+
+    if scan_state is None:
+        return JSONResponse(
+            {
+                "error": "Scan not found.",
+                "scan_id": scan_id,
+            },
+            status_code=404,
+        )
+
+    external_node_ids = tuple(
+        value.strip()
+        for value in request.query_params.getlist(
+            "external_node_id"
+        )
+        if value.strip()
+    )
+
+    closure = service.closure(
+        node_id,
+        external_node_ids=external_node_ids,
+    )
+
+    return JSONResponse(
+        {
+            "scan_id": scan_id,
+            "closure": closure.__dict__,
+        }
+    )
+
+
+async def dependency_paths(request: Request):
+    """Return deterministic paths between two nodes."""
+
+    scan_id = str(
+        request.query_params.get(
+            "scan_id",
+            "",
+        )
+    ).strip()
+
+    source_node_id = str(
+        request.path_params.get(
+            "source_node_id",
+            "",
+        )
+    ).strip()
+
+    target_node_id = str(
+        request.path_params.get(
+            "target_node_id",
+            "",
+        )
+    ).strip()
+
+    if not scan_id:
+        return JSONResponse(
+            {
+                "error": "scan_id is required.",
+            },
+            status_code=400,
+        )
+
+    if not source_node_id or not target_node_id:
+        return JSONResponse(
+            {
+                "error": (
+                    "source_node_id and "
+                    "target_node_id are required."
+                ),
+            },
+            status_code=400,
+        )
+
+    scan_state, service = _load_dependency_service(
+        scan_id
+    )
+
+    if scan_state is None:
+        return JSONResponse(
+            {
+                "error": "Scan not found.",
+                "scan_id": scan_id,
+            },
+            status_code=404,
+        )
+
+    max_depth_value = request.query_params.get(
+        "max_depth"
+    )
+
+    max_depth = None
+
+    if max_depth_value is not None:
+        try:
+            max_depth = int(max_depth_value)
+        except ValueError:
+            return JSONResponse(
+                {
+                    "error": "max_depth must be an integer.",
+                },
+                status_code=400,
+            )
+
+        if max_depth < 1:
+            return JSONResponse(
+                {
+                    "error": "max_depth must be greater than zero.",
+                },
+                status_code=400,
+            )
+
+    paths = service.paths(
+        source_node_id,
+        target_node_id,
+        max_depth=max_depth,
+    )
+
+    return JSONResponse(
+        {
+            "scan_id": scan_id,
+            "source_node_id": source_node_id,
+            "target_node_id": target_node_id,
+            "paths": [
+                path.__dict__
+                for path in paths
+            ],
+            "total": len(paths),
+        }
+    )
+
+
+async def dependency_migration_order(request: Request):
+    """Return technical migration precedence for one node."""
+
+    scan_id = str(
+        request.query_params.get(
+            "scan_id",
+            "",
+        )
+    ).strip()
+
+    node_id = str(
+        request.path_params.get(
+            "node_id",
+            "",
+        )
+    ).strip()
+
+    if not scan_id:
+        return JSONResponse(
+            {
+                "error": "scan_id is required.",
+            },
+            status_code=400,
+        )
+
+    if not node_id:
+        return JSONResponse(
+            {
+                "error": "node_id is required.",
+            },
+            status_code=400,
+        )
+
+    scan_state, service = _load_dependency_service(
+        scan_id
+    )
+
+    if scan_state is None:
+        return JSONResponse(
+            {
+                "error": "Scan not found.",
+                "scan_id": scan_id,
+            },
+            status_code=404,
+        )
+
+    layers = service.migration_precedence(
+        node_id
+    )
+
+    return JSONResponse(
+        {
+            "scan_id": scan_id,
+            "root_node_id": node_id,
+            "migration_order": [
+                list(layer)
+                for layer in layers
+            ],
+        }
+    )
+
 
 async def history(request: Request):
     try:
@@ -1483,6 +1866,31 @@ routes = [
     Route(
         "/history",
         history,
+        methods=["GET"],
+    ),
+    Route(
+        "/dependencies",
+        dependencies,
+        methods=["GET"],
+    ),
+    Route(
+        "/dependencies/{node_id:path}/closure",
+        dependency_closure,
+        methods=["GET"],
+    ),
+    Route(
+        "/dependencies/{source_node_id:path}/paths/{target_node_id:path}",
+        dependency_paths,
+        methods=["GET"],
+    ),
+    Route(
+        "/dependencies/{node_id:path}/migration-order",
+        dependency_migration_order,
+        methods=["GET"],
+    ),
+    Route(
+        "/dependencies/{dependency_id:path}",
+        dependency_detail,
         methods=["GET"],
     ),
     Route("/diff", diff, methods=["POST"]),

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from model.business_context import BusinessContext
+from model.dependency import Dependency
 from model.scan_state import ScanState
 
 @dataclass
@@ -231,6 +232,7 @@ class ECDATScan:
     scan_state: Optional[ScanState] = None
     artifacts: List[CryptoArtifact] = field(default_factory=list)
     evidence: List[Evidence] = field(default_factory=list)
+    dependencies: List[Dependency] = field(default_factory=list)
 
     relationships: List[Relationship] = field(default_factory=list)
 

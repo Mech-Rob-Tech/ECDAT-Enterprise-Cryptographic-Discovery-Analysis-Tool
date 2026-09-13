@@ -17,6 +17,21 @@ jobs:
     name: Backend tests
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ecdat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ecdat_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -39,11 +54,18 @@ jobs:
         working-directory: backend
         run: python -m compileall -q .
 
-      - name: Run backend tests
-        working-directory: backend
+      - name: Apply database migrations
         env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          ECDAT_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/ecdat_test
+        run: python -m alembic -c backend/alembic.ini upgrade head
+
+      - name: Run backend tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
-        run: python -m pytest -q
+          ECDAT_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/ecdat_test
+        run: python -m pytest -q backend/tests backend/test_*.py
 
   frontend:
     name: Frontend lint and build
