@@ -842,28 +842,9 @@ class AffectedNodePropagator:
         affected_node_ids = set(grouped)
 
         def has_cycle() -> bool:
-            """Detect cycles in the complete observed dependency graph."""
+            """Detect cycles without depending on Python call-stack depth."""
             visiting = set()
             visited = set()
-
-            def visit(node_id: str) -> bool:
-                if node_id in visiting:
-                    return True
-
-                if node_id in visited:
-                    return False
-
-                visiting.add(node_id)
-
-                for dependency in self._engine.direct_dependencies(
-                    node_id
-                ):
-                    if visit(dependency.target_node_id):
-                        return True
-
-                visiting.remove(node_id)
-                visited.add(node_id)
-                return False
 
             all_node_ids = sorted(
                 {
@@ -876,11 +857,56 @@ class AffectedNodePropagator:
                 }
             )
 
-            return any(
-                visit(node_id)
-                for node_id in all_node_ids
-                if node_id not in visited
-            )
+            for start_node_id in all_node_ids:
+                if start_node_id in visited:
+                    continue
+
+                visiting.add(start_node_id)
+
+                stack = [
+                    (
+                        start_node_id,
+                        iter(
+                            self._engine.direct_dependencies(
+                                start_node_id
+                            )
+                        ),
+                    )
+                ]
+
+                while stack:
+                    node_id, dependencies = stack[-1]
+
+                    try:
+                        dependency = next(dependencies)
+                    except StopIteration:
+                        stack.pop()
+                        visiting.remove(node_id)
+                        visited.add(node_id)
+                        continue
+
+                    target_node_id = dependency.target_node_id
+
+                    if target_node_id in visiting:
+                        return True
+
+                    if target_node_id in visited:
+                        continue
+
+                    visiting.add(target_node_id)
+
+                    stack.append(
+                        (
+                            target_node_id,
+                            iter(
+                                self._engine.direct_dependencies(
+                                    target_node_id
+                                )
+                            ),
+                        )
+                    )
+
+            return False
 
         cycle_present = has_cycle()
 
