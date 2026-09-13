@@ -33,7 +33,7 @@ export function Topbar() {
           /
         </span>
 
-        <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground">
+        <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
           ECDAT
         </span>
       </div>
@@ -41,7 +41,7 @@ export function Topbar() {
       {/* Right */}
       <div className="flex items-center gap-5">
         <div className="hidden items-center gap-2 sm:flex">
-          <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#66748A]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#66748A]">
             Scan
           </span>
 

@@ -75,6 +75,27 @@ export default function QuantumPage() {
     });
   }, [artifacts]);
 
+  const quantumRiskCounts = useMemo(() => {
+    const counts = {
+      CRITICAL: 0,
+      HIGH: 0,
+      MEDIUM: 0,
+      LOW: 0,
+    };
+
+    for (const artifact of artifacts) {
+      const risk = artifact.quantum_risk.toUpperCase();
+
+      if (risk in counts) {
+        counts[
+          risk as keyof typeof counts
+        ] += 1;
+      }
+    }
+
+    return counts;
+  }, [artifacts]);
+
   const publicKeyFindings = useMemo(() => {
     return artifacts.filter((artifact) => {
       const type = artifact.type.toLowerCase();
@@ -100,10 +121,14 @@ export default function QuantumPage() {
     });
   }, [artifacts]);
 
+  const quantumExposed =
+    quantumRiskCounts.CRITICAL +
+    quantumRiskCounts.HIGH;
+
   const exposurePercent =
     result && result.total_artifacts > 0
       ? Math.round(
-          (result.quantum_vulnerable_assets /
+          (quantumExposed /
             result.total_artifacts) *
             100
         )
@@ -153,12 +178,12 @@ export default function QuantumPage() {
           </div>
 
           <div className="text-right">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
               Assessment
             </p>
 
             <p className="mt-2 font-mono text-xs">
-              {result.quantum_vulnerable_assets} exposed assets
+              {quantumExposed} exposed assets
             </p>
           </div>
         </div>
@@ -169,26 +194,26 @@ export default function QuantumPage() {
       <section className="grid gap-4 md:grid-cols-4">
         <Metric
           label="Quantum exposed"
-          value={result.quantum_vulnerable_assets}
+          value={quantumExposed}
           detail={`${exposurePercent}% of findings`}
         />
 
         <Metric
           label="Critical"
-          value={result.risk_summary.critical}
-          detail="highest urgency"
+          value={quantumRiskCounts.CRITICAL}
+          detail="quantum-critical findings"
         />
 
         <Metric
           label="High"
-          value={result.risk_summary.high}
-          detail="migration priority"
+          value={quantumRiskCounts.HIGH}
+          detail="quantum-high findings"
         />
 
         <Metric
           label="Public-key"
           value={publicKeyFindings.length}
-          detail="quantum sensitive"
+          detail="quantum-sensitive assets"
         />
       </section>
 
@@ -197,7 +222,7 @@ export default function QuantumPage() {
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-7">
         <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Exposure assessment
             </p>
 
@@ -245,7 +270,7 @@ export default function QuantumPage() {
 
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <div className="border-b border-[var(--border)] px-6 py-5">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
             Threat model
           </p>
 
@@ -280,7 +305,7 @@ export default function QuantumPage() {
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <div className="flex items-end justify-between gap-6 border-b border-[var(--border)] px-6 py-5">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Quantum exposure
             </p>
 
@@ -289,7 +314,7 @@ export default function QuantumPage() {
             </h2>
           </div>
 
-          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
             {quantumExposure.length} findings
           </span>
         </div>
@@ -309,7 +334,7 @@ export default function QuantumPage() {
                 <div>
                   <div className="flex items-center gap-3">
                     <span
-                      className={`font-mono text-[9px] uppercase tracking-[0.14em] ${riskText(
+                      className={`font-mono text-[10px] font-semibold uppercase tracking-[0.14em] ${riskText(
                         artifact.quantum_risk
                       )}`}
                     >
@@ -321,44 +346,44 @@ export default function QuantumPage() {
                     {artifact.algorithm}
                   </p>
 
-                  <p className="mt-2 text-[10px] text-[var(--muted-foreground)]">
+                  <p className="mt-2 text-[13px] text-[var(--muted-foreground)]">
                     {artifact.type}
                   </p>
                 </div>
 
                 <div>
-                  <p className="break-all font-mono text-xs">
+                  <p className="break-all font-mono text-[13px]">
                     {artifact.file}
                   </p>
 
-                  <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]">
+                  <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]">
                     line {artifact.line}
                   </p>
 
                   {artifact.key_size && (
-                    <p className="mt-3 font-mono text-[9px] text-[var(--muted-foreground)]">
+                    <p className="mt-3 font-mono text-[12px] text-[var(--muted-foreground)]">
                       key size: {artifact.key_size}
                     </p>
                   )}
 
                   {artifact.curve && (
-                    <p className="mt-1 font-mono text-[9px] text-[var(--muted-foreground)]">
+                    <p className="mt-1 font-mono text-[12px] text-[var(--muted-foreground)]">
                       curve: {artifact.curve}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <p className="text-xs leading-5 text-[var(--muted-foreground)]">
+                  <p className="text-[13px] leading-5 text-[var(--muted-foreground)]">
                     {artifact.risk_reason}
                   </p>
 
                   <div className="mt-4 border-l border-[var(--primary)]/40 pl-4">
-                    <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--primary)]">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
                       Recommended direction
                     </p>
 
-                    <p className="mt-2 text-xs leading-5">
+                    <p className="mt-2 text-[13px] leading-5">
                       {artifact.recommendation}
                     </p>
                   </div>
@@ -372,7 +397,7 @@ export default function QuantumPage() {
       {/* MIGRATION TARGETS */}
 
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-6">
-        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
           Migration targets
         </p>
 
@@ -414,7 +439,7 @@ export default function QuantumPage() {
           <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--primary)]" />
 
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Assessment boundary
             </p>
 
@@ -444,7 +469,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-5">
-      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
         {label}
       </p>
 
@@ -453,7 +478,7 @@ function Metric({
           {value}
         </span>
 
-        <span className="text-right font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]">
+        <span className="text-right font-mono text-[10px] uppercase tracking-[0.1em] text-white">
           {detail}
         </span>
       </div>
@@ -482,7 +507,7 @@ function ThreatCard({
         </span>
       </div>
 
-      <p className="mt-4 text-xs leading-5 text-[var(--muted-foreground)]">
+      <p className="mt-4 text-[13px] leading-5 text-[var(--muted-foreground)]">
         {description}
       </p>
     </div>

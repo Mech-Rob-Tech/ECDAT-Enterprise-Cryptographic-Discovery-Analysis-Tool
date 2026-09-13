@@ -194,11 +194,11 @@ export default function InventoryPage() {
           </div>
 
           <div className="text-right">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
               Scan target
             </p>
 
-            <p className="mt-2 max-w-[280px] break-all font-mono text-xs">
+            <p className="mt-2 max-w-[280px] break-all font-mono text-[13px]">
               {result.target}
             </p>
           </div>
@@ -238,7 +238,7 @@ export default function InventoryPage() {
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-6">
         <div className="flex items-end justify-between gap-6">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Risk distribution
             </p>
 
@@ -247,7 +247,7 @@ export default function InventoryPage() {
             </h2>
           </div>
 
-          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
             {result.total_artifacts} total
           </span>
         </div>
@@ -288,7 +288,7 @@ export default function InventoryPage() {
       <section className="mt-5 grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--card)]">
           <div className="border-b border-[var(--border)] px-6 py-5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Technology profile
             </p>
 
@@ -309,7 +309,7 @@ export default function InventoryPage() {
                       {algorithm}
                     </span>
 
-                    <span className="rounded-full border border-[var(--border)] px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+                    <span className="rounded-full border border-[var(--border)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
                       {data.type}
                     </span>
                   </div>
@@ -319,7 +319,7 @@ export default function InventoryPage() {
                       ([risk, count]) => (
                         <span
                           key={risk}
-                          className={`font-mono text-[8px] uppercase tracking-[0.1em] ${riskText(
+                          className={`font-mono text-[10px] uppercase tracking-[0.1em] ${riskText(
                             risk
                           )}`}
                         >
@@ -335,7 +335,7 @@ export default function InventoryPage() {
                     {data.count}
                   </p>
 
-                  <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
                     findings
                   </p>
                 </div>
@@ -354,7 +354,7 @@ export default function InventoryPage() {
 
         <div className="rounded-lg border border-[var(--border)] bg-[var(--card)]">
           <div className="border-b border-[var(--border)] px-6 py-5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Classification
             </p>
 
@@ -403,7 +403,7 @@ export default function InventoryPage() {
 
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <div className="border-b border-[var(--border)] px-6 py-5">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
             Source distribution
           </p>
 
@@ -424,7 +424,7 @@ export default function InventoryPage() {
                 className="grid gap-5 px-6 py-5 lg:grid-cols-[1fr_120px_260px]"
               >
                 <div>
-                  <p className="break-all font-mono text-xs">
+                  <p className="break-all font-mono text-[13px]">
                     {file}
                   </p>
 
@@ -432,7 +432,7 @@ export default function InventoryPage() {
                     {data.algorithms.map((algorithm) => (
                       <span
                         key={algorithm}
-                        className="border border-[var(--border)] px-2 py-1 font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]"
+                        className="border border-[var(--border)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--muted-foreground)]"
                       >
                         {algorithm}
                       </span>
@@ -445,7 +445,7 @@ export default function InventoryPage() {
                     {data.count}
                   </p>
 
-                  <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
                     artifacts
                   </p>
                 </div>
@@ -454,7 +454,7 @@ export default function InventoryPage() {
                   {data.risks.map((risk) => (
                     <span
                       key={risk}
-                      className={`font-mono text-[8px] uppercase tracking-[0.1em] ${riskText(
+                      className={`font-mono text-[10px] uppercase tracking-[0.1em] ${riskText(
                         risk
                       )}`}
                     >
@@ -475,7 +475,7 @@ export default function InventoryPage() {
           <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--primary)]" />
 
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Inventory boundary
             </p>
 
@@ -503,7 +503,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-5">
-      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
         {label}
       </p>
 
@@ -512,7 +512,7 @@ function Metric({
           {value}
         </span>
 
-        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
           {detail}
         </span>
       </div>
@@ -535,7 +535,7 @@ function RiskCard({
     <div className="border border-[var(--border)] p-5">
       <div className="flex items-center justify-between">
         <span
-          className={`font-mono text-[9px] uppercase tracking-[0.14em] ${riskText(
+          className={`font-mono text-[10px] uppercase tracking-[0.14em] ${riskText(
             risk
           )}`}
         >
@@ -547,7 +547,7 @@ function RiskCard({
         </span>
       </div>
 
-      <p className="mt-4 text-xs text-[var(--muted-foreground)]">
+      <p className="mt-4 text-[13px] leading-5 text-[var(--muted-foreground)]">
         {description}
       </p>
     </div>

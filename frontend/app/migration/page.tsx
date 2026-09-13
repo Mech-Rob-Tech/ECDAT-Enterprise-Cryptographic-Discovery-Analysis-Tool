@@ -218,7 +218,7 @@ export default function MigrationPage() {
           </div>
 
           <div className="text-right">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
               Target
             </p>
 
@@ -262,7 +262,7 @@ export default function MigrationPage() {
       <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Strategy
             </p>
 
@@ -271,7 +271,7 @@ export default function MigrationPage() {
             </h2>
           </div>
 
-          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
             {prioritized.length} assets
           </span>
         </div>
@@ -346,7 +346,7 @@ export default function MigrationPage() {
           <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--primary)]" />
 
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
               Migration guidance
             </p>
 
@@ -375,7 +375,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-5">
-      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
         {label}
       </p>
 
@@ -384,7 +384,7 @@ function Metric({
           {value}
         </span>
 
-        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
           {detail}
         </span>
       </div>
@@ -407,11 +407,11 @@ function Strategy({
         {number}
       </span>
 
-      <h3 className="mt-4 text-sm font-medium">
+      <h3 className="mt-4 text-[15px] font-semibold">
         {title}
       </h3>
 
-      <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
+      <p className="mt-2 text-[13px] leading-5 text-[var(--muted-foreground)]">
         {description}
       </p>
     </div>
@@ -437,7 +437,7 @@ function MigrationSection({
   return (
     <section className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--card)]">
       <div className="border-b border-[var(--border)] px-6 py-5">
-        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--primary)]">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
           {eyebrow}
         </p>
 
@@ -447,12 +447,12 @@ function MigrationSection({
               {title}
             </h2>
 
-            <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
+            <p className="mt-2 text-[13px] leading-5 text-[var(--muted-foreground)]">
               {description}
             </p>
           </div>
 
-          <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+          <span className="shrink-0 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
             {items.length} findings
           </span>
         </div>
@@ -472,7 +472,7 @@ function MigrationSection({
               <div>
                 <div className="flex items-center gap-3">
                   <span
-                    className={`rounded-full border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.14em] ${priorityClasses(
+                    className={`rounded-full border px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] ${priorityClasses(
                       artifact.priority
                     )}`}
                   >
@@ -484,38 +484,38 @@ function MigrationSection({
                   </span>
                 </div>
 
-                <p className="mt-3 text-[10px] text-[var(--muted-foreground)]">
+                <p className="mt-3 text-[13px] text-[var(--muted-foreground)]">
                   {artifact.area}
                 </p>
               </div>
 
               <div>
-                <p className="font-mono text-xs break-all">
+                <p className="font-mono text-[13px] break-all">
                   {artifact.file}
                 </p>
 
-                <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+                <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
                   line {artifact.line}
                 </p>
 
                 {artifact.key_size && (
-                  <p className="mt-2 font-mono text-[9px] text-[var(--muted-foreground)]">
+                  <p className="mt-2 font-mono text-[12px] text-[var(--muted-foreground)]">
                     key size: {artifact.key_size}
                   </p>
                 )}
               </div>
 
               <div>
-                <p className="text-xs leading-5 text-[var(--muted-foreground)]">
+                <p className="text-[13px] leading-5 text-[var(--muted-foreground)]">
                   {artifact.recommendation}
                 </p>
 
                 <div className="mt-4 border-l border-[var(--primary)]/40 pl-3">
-                  <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
                     Evidence
                   </p>
 
-                  <p className="mt-1 font-mono text-[10px] leading-5 text-[var(--foreground)]">
+                  <p className="mt-1 font-mono text-[12px] leading-5 text-[var(--foreground)]">
                     {artifact.evidence}
                   </p>
                 </div>

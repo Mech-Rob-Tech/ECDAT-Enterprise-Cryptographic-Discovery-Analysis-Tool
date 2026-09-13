@@ -234,7 +234,7 @@ export default function MoscaPage() {
           </div>
 
           <div className="text-right">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
               Target
             </p>
 
@@ -376,7 +376,7 @@ export default function MoscaPage() {
                       onClick={() =>
                         setBusinessCriticalityOverride(level)
                       }
-                      className={`border px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] transition ${
+                      className={`border px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] transition ${
                         selected
                           ? "border-[var(--primary)] bg-[var(--primary)]/[0.08] text-[var(--primary)]"
                           : "border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--primary)]/40 hover:text-[var(--foreground)]"

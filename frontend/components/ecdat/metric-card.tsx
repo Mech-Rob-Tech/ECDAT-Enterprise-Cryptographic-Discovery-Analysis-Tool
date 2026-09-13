@@ -14,7 +14,7 @@ export function MetricCard({
   return (
     <section className="rounded-lg border border-white/[0.07] bg-card p-5">
       <div className="flex items-start justify-between">
-        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           {label}
         </p>
 

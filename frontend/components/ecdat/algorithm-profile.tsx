@@ -13,7 +13,7 @@ export function AlgorithmProfile({
     <section className="rounded-lg border border-white/[0.07] bg-card p-6">
       <div className="flex items-start justify-between">
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             Algorithm profile
           </p>
 
@@ -22,7 +22,7 @@ export function AlgorithmProfile({
           </h2>
         </div>
 
-        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
           distribution
         </span>
       </div>

@@ -11,7 +11,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header>
-      <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-primary">
+      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
         {eyebrow}
       </p>
 
