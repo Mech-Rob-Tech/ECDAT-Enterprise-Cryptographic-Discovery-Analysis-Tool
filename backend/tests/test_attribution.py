@@ -1,4 +1,4 @@
-from analysis.attribution import AttributionPath
+from analysis.attribution import AttributionPath, AttributionRelation
 from analysis.incremental_dependency import PropagationPath
 
 
@@ -74,5 +74,49 @@ def test_empty_propagation_path_is_rejected():
         AttributionPath.from_propagation_path(EmptyPath())
     except ValueError as exc:
         assert "at least one node" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_attribution_relation_preserves_observed_vs_derived():
+    observed = AttributionRelation(
+        relation_id="r1",
+        relation_type="DEPENDS_ON",
+        source_id="service:a",
+        target_id="crypto:rsa",
+        derivation="observed",
+        origin_dependency_ids=("d2", "d1"),
+        evidence_ids=("e2", "e1"),
+        confidence="high",
+    )
+
+    derived = AttributionRelation(
+        relation_id="r2",
+        relation_type="IMPACTS",
+        source_id="crypto:rsa",
+        target_id="application:payments",
+        derivation="derived",
+        origin_dependency_ids=("d1",),
+        evidence_ids=("e1",),
+        confidence="medium",
+    )
+
+    assert observed.derivation == "OBSERVED"
+    assert derived.derivation == "DERIVED"
+    assert observed.origin_dependency_ids == ("d1", "d2")
+    assert observed.evidence_ids == ("e1", "e2")
+
+
+def test_attribution_relation_rejects_unknown_derivation():
+    try:
+        AttributionRelation(
+            relation_id="r1",
+            relation_type="IMPACTS",
+            source_id="a",
+            target_id="b",
+            derivation="guessed",
+        )
+    except ValueError as exc:
+        assert "OBSERVED or DERIVED" in str(exc)
     else:
         raise AssertionError("expected ValueError")

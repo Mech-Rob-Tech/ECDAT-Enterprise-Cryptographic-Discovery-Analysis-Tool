@@ -146,3 +146,86 @@ class AttributionPath:
         )
 
         return payload.encode("utf-8")
+
+
+@dataclass(frozen=True)
+class AttributionRelation:
+    """
+    Evidence-backed relationship used by an impact attribution.
+
+    relation_type:
+        Identifies the semantic relationship.
+
+    derivation:
+        OBSERVED when directly supplied by evidence.
+        DERIVED when constructed analytically from other relationships.
+
+    source_id / target_id:
+        Canonical entities connected by the relationship.
+
+    origin_dependency_ids:
+        Observed dependency records supporting the relationship.
+
+    evidence_ids:
+        Evidence records supporting the relationship.
+
+    confidence:
+        Confidence assigned to this particular relationship.
+    """
+
+    relation_id: str
+    relation_type: str
+    source_id: str
+    target_id: str
+    derivation: str = "OBSERVED"
+    origin_dependency_ids: Tuple[str, ...] = ()
+    evidence_ids: Tuple[str, ...] = ()
+    confidence: str = "unknown"
+
+    OBSERVED = "OBSERVED"
+    DERIVED = "DERIVED"
+
+    def __post_init__(self) -> None:
+        derivation = str(self.derivation).upper()
+
+        if derivation not in {
+            self.OBSERVED,
+            self.DERIVED,
+        }:
+            raise ValueError(
+                "derivation must be OBSERVED or DERIVED"
+            )
+
+        object.__setattr__(
+            self,
+            "derivation",
+            derivation,
+        )
+
+        object.__setattr__(
+            self,
+            "origin_dependency_ids",
+            _sorted_unique(self.origin_dependency_ids),
+        )
+
+        object.__setattr__(
+            self,
+            "evidence_ids",
+            _sorted_unique(self.evidence_ids),
+        )
+
+    def canonical_bytes(self) -> bytes:
+        payload = "|".join(
+            (
+                self.relation_id,
+                self.relation_type,
+                self.source_id,
+                self.target_id,
+                self.derivation,
+                ",".join(self.origin_dependency_ids),
+                ",".join(self.evidence_ids),
+                self.confidence,
+            )
+        )
+
+        return payload.encode("utf-8")
