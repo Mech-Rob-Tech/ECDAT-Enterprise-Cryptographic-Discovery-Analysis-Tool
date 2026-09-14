@@ -11,6 +11,8 @@ import hashlib
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
+from analysis.attribution import AttributionPath, AttributionRelation
+
 
 KNOWN = "KNOWN"
 CONDITIONAL = "CONDITIONAL"
@@ -54,6 +56,8 @@ class ImpactAssessment:
 
     root_node_ids: tuple[str, ...]
     attributions: tuple[ImpactAttribution, ...]
+    attribution_paths: tuple[AttributionPath, ...]
+    attribution_relations: tuple[AttributionRelation, ...]
     known_count: int
     conditional_count: int
     unresolved_count: int
@@ -65,7 +69,7 @@ class ImpactAssessment:
         ]
         for item in self.attributions:
             rows.append(
-                "|".join(
+                "ATTRIBUTION|" + "|".join(
                     [
                         item.node_id,
                         item.impact_status,
@@ -81,6 +85,29 @@ class ImpactAssessment:
                     ]
                 )
             )
+
+        for path in sorted(
+            self.attribution_paths,
+            key=lambda item: (
+                item.root_node_id,
+                item.affected_node_id,
+                item.depth,
+                item.dependency_ids,
+                item.evidence_ids,
+            ),
+        ):
+            rows.append(
+                "PATH|" + path.canonical_bytes().decode("utf-8")
+            )
+
+        for relation in sorted(
+            self.attribution_relations,
+            key=lambda item: item.relation_id,
+        ):
+            rows.append(
+                "RELATION|" + relation.canonical_bytes().decode("utf-8")
+            )
+
         return "\n".join(rows).encode("utf-8")
 
 
@@ -109,7 +136,12 @@ class ImpactAttributionEngine:
                 context_by_application.setdefault(str(application_id), []).append(context)
 
         attributions: list[ImpactAttribution] = []
-        affected_nodes = tuple(_value(propagation_result, "affected_nodes", ()) or ())
+        attribution_paths: list[AttributionPath] = []
+        attribution_relations: list[AttributionRelation] = []
+
+        affected_nodes = tuple(
+            _value(propagation_result, "affected_nodes", ()) or ()
+        )
 
         for affected in affected_nodes:
             node_id = str(_value(affected, "node_id"))
@@ -117,6 +149,36 @@ class ImpactAttributionEngine:
             origin_ids = _sorted_unique(_value(affected, "origin_dependency_ids", ()))
 
             paths = tuple(_value(affected, "paths", ()) or ())
+
+            for propagation_path in paths:
+                attribution_path = AttributionPath.from_propagation_path(
+                    propagation_path
+                )
+                attribution_paths.append(attribution_path)
+
+                relation_seed = attribution_path.canonical_bytes()
+                relation_id = (
+                    "rel-"
+                    + hashlib.sha256(relation_seed).hexdigest()[:32]
+                )
+
+                attribution_relations.append(
+                    AttributionRelation(
+                        relation_id=relation_id,
+                        relation_type="IMPACTS",
+                        source_id=attribution_path.root_node_id,
+                        target_id=attribution_path.affected_node_id,
+                        derivation=AttributionRelation.DERIVED,
+                        origin_dependency_ids=(
+                            attribution_path.dependency_ids
+                        ),
+                        evidence_ids=(
+                            attribution_path.evidence_ids
+                        ),
+                        confidence="derived",
+                    )
+                )
+
             dependency_ids = _sorted_unique(
                 dependency_id
                 for path in paths
@@ -187,10 +249,36 @@ class ImpactAttributionEngine:
             )
 
         attributions.sort(key=lambda item: (item.depth, item.node_id))
+
+        attribution_paths = sorted(
+            {
+                path
+                for path in attribution_paths
+            },
+            key=lambda item: (
+                item.root_node_id,
+                item.affected_node_id,
+                item.depth,
+                item.dependency_ids,
+                item.evidence_ids,
+            ),
+        )
+
+        attribution_relations = sorted(
+            {
+                relation
+                for relation in attribution_relations
+            },
+            key=lambda item: item.relation_id,
+        )
+
         roots = _sorted_unique(root_node_ids)
+
         provisional = ImpactAssessment(
             root_node_ids=roots,
             attributions=tuple(attributions),
+            attribution_paths=tuple(attribution_paths),
+            attribution_relations=tuple(attribution_relations),
             known_count=sum(item.impact_status == KNOWN for item in attributions),
             conditional_count=sum(item.impact_status == CONDITIONAL for item in attributions),
             unresolved_count=sum(item.impact_status == UNRESOLVED for item in attributions),
@@ -200,6 +288,8 @@ class ImpactAttributionEngine:
         return ImpactAssessment(
             root_node_ids=provisional.root_node_ids,
             attributions=provisional.attributions,
+            attribution_paths=provisional.attribution_paths,
+            attribution_relations=provisional.attribution_relations,
             known_count=provisional.known_count,
             conditional_count=provisional.conditional_count,
             unresolved_count=provisional.unresolved_count,

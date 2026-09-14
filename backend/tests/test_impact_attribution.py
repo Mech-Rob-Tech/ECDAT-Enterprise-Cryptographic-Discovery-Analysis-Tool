@@ -129,3 +129,82 @@ def test_result_is_deterministic():
 
     assert first.digest == second.digest
     assert first.attributions == second.attributions
+
+
+def test_assessment_preserves_attribution_paths_and_derived_relations():
+    context = BusinessContext(
+        context_id="ctx-1",
+        application_id="app-2",
+        source="declared",
+        confidence="high",
+    )
+
+    result = build_impact_assessment(
+        _propagation(),
+        [context],
+        root_node_ids=["app-1"],
+    )
+
+    assert len(result.attribution_paths) == 1
+    path = result.attribution_paths[0]
+
+    assert path.root_node_id == "app-1"
+    assert path.affected_node_id == "app-2"
+    assert path.dependency_ids == ("dep-1",)
+    assert path.evidence_ids == ("ev-dep",)
+
+    assert len(result.attribution_relations) == 1
+    relation = result.attribution_relations[0]
+
+    assert relation.relation_type == "IMPACTS"
+    assert relation.derivation == "DERIVED"
+    assert relation.source_id == "app-1"
+    assert relation.target_id == "app-2"
+    assert relation.origin_dependency_ids == ("dep-1",)
+    assert relation.evidence_ids == ("ev-dep",)
+
+
+def test_attribution_lineage_changes_deterministic_digest():
+    first = build_impact_assessment(
+        _propagation(),
+        [
+            BusinessContext(
+                context_id="ctx-1",
+                application_id="app-2",
+                source="declared",
+                confidence="high",
+            )
+        ],
+        root_node_ids=["app-1"],
+    )
+
+    class DifferentEvidencePath:
+        dependency_ids = ("dep-1",)
+        evidence_ids = ("different-evidence",)
+        node_ids = ("app-1", "app-2")
+
+    class DifferentAffectedNode:
+        node_id = "app-2"
+        depth = 1
+        origin_dependency_ids = ("dep-1",)
+        paths = (DifferentEvidencePath(),)
+
+    different_propagation = PropagationResult(
+        affected_nodes=(DifferentAffectedNode(),),
+        paths=(),
+    )
+
+    second = build_impact_assessment(
+        different_propagation,
+        [
+            BusinessContext(
+                context_id="ctx-1",
+                application_id="app-2",
+                source="declared",
+                confidence="high",
+            )
+        ],
+        root_node_ids=["app-1"],
+    )
+
+    assert first.digest != second.digest
