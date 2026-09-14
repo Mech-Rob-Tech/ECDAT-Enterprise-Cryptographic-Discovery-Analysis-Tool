@@ -1,8 +1,10 @@
 from typing import Any, Dict, Optional
 
 from model.canonical import build_canonical_scan
-from model.decision import snapshot_to_dict
-from analysis.decision_engine import build_intelligence_snapshot
+from analysis.decision_engine import (
+    build_intelligence_snapshot,
+    snapshot_to_dict,
+)
 from analysis.risk_landscape import build_risk_landscape
 
 from knowledge.service import KnowledgeService
@@ -350,16 +352,11 @@ def build_report(
         )
 
     return {
-        # Knowledge context used for this analytical result.
         "knowledge_snapshot": knowledge_snapshot,
-
-        # v0.8 decision intelligence derived from the canonical model.
         "intelligence": {
             "decisions": intelligence_decisions,
             "actions": intelligence_actions,
         },
-
-        # Canonical analytical model
         "metadata": {
             "target": canonical_scan.metadata.target,
             "generated_at": canonical_scan.metadata.generated_at,
@@ -412,8 +409,6 @@ def build_report(
         "verification": verification,
         "canonical_artifacts": canonical_artifacts,
         "risk_landscape": risk_landscape,
-
-        # Legacy compatibility
         "target": scan_results.get("target"),
         "generated_at": scan_results.get("generated_at"),
         "prototype_scope": scan_results.get(
