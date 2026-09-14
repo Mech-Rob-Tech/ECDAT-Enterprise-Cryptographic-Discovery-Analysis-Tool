@@ -1,9 +1,4 @@
-"""Deterministic decision engine for ECDAT v0.8.
-
-This module consumes existing Risk Matrix / Risk Landscape outputs and
-canonical migration/recommendation data. It deliberately does not create
-a second risk model.
-"""
+"""Deterministic decision engine for ECDAT v0.8."""
 
 from __future__ import annotations
 
@@ -22,9 +17,12 @@ from model.decision import (
 )
 from analysis.risk_matrix import (
     RISK_SCORE,
+    calculate_decision,
+    calculate_exposure_level,
     get_business_criticality,
-    get_business_context,
-    build_business_context_lookup,
+    get_business_context_id,
+    get_business_context_source,
+    get_business_context_confidence,
     get_security_risk,
     get_quantum_risk,
     get_mosca_risk,
@@ -54,57 +52,16 @@ def _ids(value: Any, key: str) -> List[str]:
     return []
 
 
-def _decision(
-    exposure_levels: Iterable[Optional[str]],
-    consequence: str,
-    mosca_risk: Optional[str],
-    mosca_status: Optional[str],
-) -> str:
-    levels = [level for level in exposure_levels if level]
-    if (
-        "CRITICAL" in levels
-        or consequence == "CRITICAL"
-        or ("HIGH" in levels and consequence == "HIGH")
-        or (
-            mosca_status == "AT_RISK"
-            and mosca_risk in {"HIGH", "CRITICAL"}
-        )
-    ):
-        return DECISION_ACTION
-
-    if (
-        "HIGH" in levels
-        or consequence == "HIGH"
-        or mosca_risk == "HIGH"
-    ):
-        return DECISION_PRIORITIZE
-
-    return DECISION_REVIEW
-
-
-def _priority(decision: str) -> str:
-    return {
-        DECISION_ACTION: "HIGH",
-        DECISION_PRIORITIZE: "MEDIUM",
-        DECISION_REVIEW: "LOW",
-    }[decision]
-
-
-def _best_migration(
-    artifact: Any,
-    migration_options: Optional[Iterable[Any]],
-) -> Optional[Any]:
+def _best_migration(artifact: Any, migration_options: Optional[Iterable[Any]]) -> Optional[Any]:
     ids = set(_ids(artifact, "migration_option_ids"))
     if not ids or migration_options is None:
         return None
-
     candidates = [
         option for option in migration_options
         if str(_get(option, "option_id")) in ids
     ]
     if not candidates:
         return None
-
     rank = {"high": 0, "medium": 1, "low": 2}
     return sorted(
         candidates,
@@ -123,76 +80,57 @@ def build_decision_record(
     policy: DecisionPolicy = DEFAULT_POLICY,
 ) -> DecisionRecord:
     """Build one deterministic decision record from canonical inputs."""
-
     artifact_id = str(_get(artifact, "artifact_id", "unknown"))
     application_id = get_artifact_application_id(artifact)
     security = get_security_risk(artifact)
     quantum = get_quantum_risk(artifact)
     mosca = get_mosca_risk(artifact)
     mosca_status = get_mosca_status(artifact)
-    consequence = get_business_criticality(
-        artifact,
-        business_context=business_context,
-    )
-
-    decision = _decision(
-        (security, quantum),
-        consequence,
-        mosca,
-        mosca_status,
-    )
+    consequence = get_business_criticality(artifact, business_context=business_context)
+    exposure = calculate_exposure_level(security, quantum)
+    decision = calculate_decision(exposure, consequence, quantum, mosca, mosca_status)
 
     evidence_ids = _ids(artifact, "evidence_ids")
     recommendation_ids = _ids(artifact, "recommendation_ids")
     migration_ids = _ids(artifact, "migration_option_ids")
     dependency_list = [str(item) for item in (dependency_ids or [])]
 
-    context_id = _get(business_context, "business_context_id")
-    context_ids = [str(context_id)] if context_id is not None else []
+    context_id = get_business_context_id(business_context)
+    context_ids = [context_id] if context_id else []
 
-    reasons: List[str] = []
-    if security in {"HIGH", "CRITICAL"}:
-        reasons.append(f"security risk is {security}")
-    if quantum in {"HIGH", "CRITICAL"}:
-        reasons.append(f"quantum risk is {quantum}")
-    if mosca_status == "AT_RISK":
-        reasons.append(f"MOSCA is AT_RISK with {mosca or 'LOW'} risk")
-    if consequence in {"HIGH", "CRITICAL"}:
-        reasons.append(f"business consequence is {consequence}")
-    if not reasons:
-        reasons.append("no higher-priority analytical condition is present")
-
+    reasons: List[str] = [f"exposure={exposure}", f"business_consequence={consequence}"]
+    if security:
+        reasons.append(f"security_risk={security}")
+    if quantum:
+        reasons.append(f"quantum_risk={quantum}")
+    if mosca:
+        reasons.append(f"mosca_risk={mosca}")
+    if mosca_status:
+        reasons.append(f"mosca_status={mosca_status}")
     rationale = f"{decision}: " + "; ".join(reasons) + "."
 
     confidence = "high" if evidence_ids else "medium"
-    if business_context is not None:
-        context_confidence = str(_get(business_context, "confidence", ""))
-        if context_confidence:
-            confidence = context_confidence.lower()
+    context_confidence = get_business_context_confidence(business_context)
+    if context_confidence:
+        confidence = str(context_confidence).lower()
 
     provenance: Dict[str, Any] = {
         "source": "canonical-risk-matrix-risk-landscape",
         "policy_id": policy.policy_id,
         "policy_version": policy.version,
     }
-
-    decision_id = stable_id(
-        "decision",
-        policy.version,
-        artifact_id,
-    )
+    context_source = get_business_context_source(business_context)
+    if context_source:
+        provenance["business_context_source"] = context_source
 
     return DecisionRecord(
-        decision_id=decision_id,
+        decision_id=stable_id("decision", policy.version, artifact_id),
         artifact_id=artifact_id,
         application_id=application_id,
         decision=decision,
         policy_id=policy.policy_id,
         policy_version=policy.version,
-        exposure_level=max(
-            (security, quantum),
-            key=lambda item: RISK_SCORE.get(item or "LOW", 1),
-        ),
+        exposure_level=exposure,
         consequence_level=consequence,
         security_risk=security,
         quantum_risk=quantum,
@@ -216,7 +154,6 @@ def build_action_vector(
     migration_options: Optional[Iterable[Any]] = None,
 ) -> ActionVector:
     """Project a decision and existing migration option into an action."""
-
     option = _best_migration(artifact, migration_options)
     option_id = _get(option, "option_id") if option is not None else None
     target = _get(option, "target_algorithm", _get(option, "name")) if option is not None else None
@@ -232,7 +169,7 @@ def build_action_vector(
 
     return ActionVector(
         action=action,
-        priority=_priority(decision_record.decision),
+        priority={DECISION_ACTION: "HIGH", DECISION_PRIORITIZE: "MEDIUM", DECISION_REVIEW: "LOW"}[decision_record.decision],
         artifact_id=decision_record.artifact_id,
         application_id=decision_record.application_id,
         decision_id=decision_record.decision_id,
@@ -255,18 +192,8 @@ def build_intelligence_snapshot(
     policy: DecisionPolicy = DEFAULT_POLICY,
 ) -> IntelligenceSnapshot:
     """Build the Workbench-ready decision snapshot."""
-    decision = build_decision_record(
-        artifact=artifact,
-        business_context=business_context,
-        migration_options=migration_options,
-        dependency_ids=dependency_ids,
-        policy=policy,
-    )
-    action = build_action_vector(
-        artifact=artifact,
-        decision_record=decision,
-        migration_options=migration_options,
-    )
+    decision = build_decision_record(artifact, business_context, migration_options, dependency_ids, policy)
+    action = build_action_vector(artifact, decision, migration_options)
     return IntelligenceSnapshot(decision=decision, action=action)
 
 
