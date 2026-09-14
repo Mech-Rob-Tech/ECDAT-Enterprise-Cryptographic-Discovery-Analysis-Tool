@@ -169,6 +169,229 @@ async def scan(request: Request):
             status_code=500,
         )
 
+async def impact(request: Request):
+    """
+    Compare two persisted historical scan states and return
+    deterministic dependency-to-business impact attribution.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            {
+                "error": "Request body must be valid JSON."
+            },
+            status_code=400,
+        )
+
+    from_scan_id = str(
+        body.get("from_scan_id") or ""
+    ).strip()
+
+    to_scan_id = str(
+        body.get("to_scan_id") or ""
+    ).strip()
+
+    if not from_scan_id or not to_scan_id:
+        return JSONResponse(
+            {
+                "error": (
+                    "from_scan_id and to_scan_id "
+                    "are required."
+                )
+            },
+            status_code=400,
+        )
+
+    from_scan = load_scan_state(
+        from_scan_id
+    )
+
+    if from_scan is None:
+        return JSONResponse(
+            {
+                "error": (
+                    "Source scan was not found: "
+                    f"{from_scan_id}"
+                )
+            },
+            status_code=404,
+        )
+
+    to_scan = load_scan_state(
+        to_scan_id
+    )
+
+    if to_scan is None:
+        return JSONResponse(
+            {
+                "error": (
+                    "Target scan was not found: "
+                    f"{to_scan_id}"
+                )
+            },
+            status_code=404,
+        )
+
+    try:
+        from analysis.impact_pipeline import (
+            assess_scan_change,
+        )
+
+        result = assess_scan_change(
+            from_scan,
+            to_scan,
+        )
+
+        assessment = result.impact_assessment
+
+        return JSONResponse(
+            {
+                "from_scan_id": from_scan_id,
+                "to_scan_id": to_scan_id,
+                "dependency_changes": [
+                    {
+                        "dependency_id": change.dependency_id,
+                        "change_type": change.change_type,
+                        "affected_source_node": (
+                            change.affected_source_node
+                        ),
+                        "affected_target_node": (
+                            change.affected_target_node
+                        ),
+                    }
+                    for change in result.dependency_changes
+                    if change.change_type != "unchanged"
+                ],
+                "dependency_delta": {
+                    "added": list(
+                        result.dependency_delta.added
+                    ),
+                    "removed": list(
+                        result.dependency_delta.removed
+                    ),
+                    "modified": list(
+                        result.dependency_delta.modified
+                    ),
+                    "unchanged_count": (
+                        result.dependency_delta.unchanged_count
+                    ),
+                    "affected_nodes": list(
+                        result.dependency_delta.affected_nodes
+                    ),
+                    "recompute_nodes": list(
+                        result.dependency_delta.recompute_nodes
+                    ),
+                    "preserved_nodes": list(
+                        result.dependency_delta.preserved_nodes
+                    ),
+                },
+                "impact_assessment": {
+                    "root_node_ids": list(
+                        assessment.root_node_ids
+                    ),
+                    "known_count": (
+                        assessment.known_count
+                    ),
+                    "conditional_count": (
+                        assessment.conditional_count
+                    ),
+                    "unresolved_count": (
+                        assessment.unresolved_count
+                    ),
+                    "digest": assessment.digest,
+                    "attributions": [
+                        {
+                            "node_id": item.node_id,
+                            "impact_status": (
+                                item.impact_status
+                            ),
+                            "impact_type": (
+                                item.impact_type
+                            ),
+                            "depth": item.depth,
+                            "origin_dependency_ids": list(
+                                item.origin_dependency_ids
+                            ),
+                            "dependency_ids": list(
+                                item.dependency_ids
+                            ),
+                            "evidence_ids": list(
+                                item.evidence_ids
+                            ),
+                            "business_context_ids": list(
+                                item.business_context_ids
+                            ),
+                            "business_evidence_ids": list(
+                                item.business_evidence_ids
+                            ),
+                            "business_consequence": (
+                                item.business_consequence
+                            ),
+                            "attribution_confidence": (
+                                item.attribution_confidence
+                            ),
+                        }
+                        for item in assessment.attributions
+                    ],
+                    "attribution_paths": [
+                        {
+                            "root_node_id": path.root_node_id,
+                            "affected_node_id": (
+                                path.affected_node_id
+                            ),
+                            "dependency_ids": list(
+                                path.dependency_ids
+                            ),
+                            "relationship_ids": list(
+                                path.relationship_ids
+                            ),
+                            "evidence_ids": list(
+                                path.evidence_ids
+                            ),
+                            "depth": path.depth,
+                        }
+                        for path in assessment.attribution_paths
+                    ],
+                    "attribution_relations": [
+                        {
+                            "relation_id": (
+                                relation.relation_id
+                            ),
+                            "relation_type": (
+                                relation.relation_type
+                            ),
+                            "source_id": relation.source_id,
+                            "target_id": relation.target_id,
+                            "derivation": (
+                                relation.derivation
+                            ),
+                            "origin_dependency_ids": list(
+                                relation.origin_dependency_ids
+                            ),
+                            "evidence_ids": list(
+                                relation.evidence_ids
+                            ),
+                            "confidence": relation.confidence,
+                        }
+                        for relation in (
+                            assessment.attribution_relations
+                        )
+                    ],
+                },
+            }
+        )
+
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "error": "ECDAT impact analysis failed.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+
 async def risk_landscape(request: Request):
     try:
         body = await request.json()
@@ -1894,6 +2117,7 @@ routes = [
         methods=["GET"],
     ),
     Route("/diff", diff, methods=["POST"]),
+    Route("/impact", impact, methods=["POST"]),
     Route("/verify", verify, methods=["POST"]),
     Route("/verifications", verifications, methods=["GET"]),
     Route(
