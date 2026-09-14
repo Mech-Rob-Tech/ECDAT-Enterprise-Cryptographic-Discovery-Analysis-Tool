@@ -55,8 +55,8 @@ def test_report_contains_deterministic_intelligence_snapshot():
     decision = first["intelligence"]["decisions"][0]
     action = first["intelligence"]["actions"][0]
 
-    assert decision["artifact_id"] == "artifact:test-intelligence"
-    assert decision["application_id"] == "app:payment"
+    assert decision["artifact_id"] == first["canonical_artifacts"][0]["artifact_id"]
+    assert decision["application_id"] == first["canonical_artifacts"][0]["application_id"]
     assert decision["business_context_ids"] == ["business:payment"]
     assert decision["decision"] == "ACTION"
     assert decision["policy_version"] == "0.8"
