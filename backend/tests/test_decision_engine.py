@@ -1,8 +1,4 @@
-from analysis.decision_engine import (
-    build_action_vector,
-    build_decision_record,
-    build_intelligence_snapshot,
-)
+from analysis.decision_engine import build_decision_record, build_intelligence_snapshot
 
 
 def artifact(**overrides):
@@ -13,10 +9,7 @@ def artifact(**overrides):
         "evidence_ids": ["evidence:1"],
         "recommendation_ids": ["recommendation:1"],
         "migration_option_ids": ["migration:1"],
-        "risk": {
-            "security": {"level": "HIGH"},
-            "quantum": {"level": "CRITICAL"},
-        },
+        "risk": {"security": {"level": "HIGH"}, "quantum": {"level": "CRITICAL"}},
         "mosca": {"risk": "HIGH", "status": "AT_RISK"},
     }
     value.update(overrides)
@@ -25,7 +18,7 @@ def artifact(**overrides):
 
 def context(**overrides):
     value = {
-        "business_context_id": "business:payment",
+        "context_id": "business:payment",
         "application_id": "app:payment",
         "operational_criticality": "CRITICAL",
         "financial_impact": "HIGH",
@@ -49,16 +42,13 @@ def migration():
 
 
 def test_action_is_deterministic_and_migration_driven():
-    first = build_intelligence_snapshot(
-        artifact(), context(), [migration()]
-    )
-    second = build_intelligence_snapshot(
-        artifact(), context(), [migration()]
-    )
+    first = build_intelligence_snapshot(artifact(), context(), [migration()])
+    second = build_intelligence_snapshot(artifact(), context(), [migration()])
 
     assert first == second
     assert first.decision.decision == "ACTION"
     assert first.decision.decision_id == "decision:0.8:artifact:payment:rsa"
+    assert first.decision.business_context_ids == ["business:payment"]
     assert first.action.action == "MIGRATE"
     assert first.action.target == "X25519MLKEM768"
     assert first.action.migration_option_id == "migration:1"
@@ -70,25 +60,17 @@ def test_action_is_deterministic_and_migration_driven():
 def test_review_does_not_invent_migration():
     result = build_decision_record(
         artifact(
-            risk={
-                "security": {"level": "LOW"},
-                "quantum": {"level": "LOW"},
-            },
+            risk={"security": {"level": "LOW"}, "quantum": {"level": "LOW"}},
             mosca={"risk": "LOW", "status": "OK"},
-            migration_option_ids=[],
-            recommendation_ids=[],
-            evidence_ids=[],
+            migration_option_ids=[], recommendation_ids=[], evidence_ids=[],
         ),
         business_context={
             "application_id": "app:payment",
-            "operational_criticality": "LOW",
-            "financial_impact": "LOW",
-            "regulatory_exposure": "LOW",
-            "customer_impact": "LOW",
+            "operational_criticality": "LOW", "financial_impact": "LOW",
+            "regulatory_exposure": "LOW", "customer_impact": "LOW",
         },
         migration_options=[],
     )
-
     assert result.decision == "REVIEW"
     assert result.migration_option_ids == []
 
@@ -96,19 +78,10 @@ def test_review_does_not_invent_migration():
 def test_prioritize_when_business_is_high():
     result = build_decision_record(
         artifact(
-            risk={
-                "security": {"level": "MEDIUM"},
-                "quantum": {"level": "LOW"},
-            },
-            mosca={"risk": "LOW", "status": "OK"},
-            migration_option_ids=[],
+            risk={"security": {"level": "MEDIUM"}, "quantum": {"level": "LOW"}},
+            mosca={"risk": "LOW", "status": "OK"}, migration_option_ids=[],
         ),
-        context(
-            operational_criticality="HIGH",
-            financial_impact="MEDIUM",
-            regulatory_exposure="MEDIUM",
-            customer_impact="MEDIUM",
-        ),
+        context(operational_criticality="HIGH", financial_impact="MEDIUM",
+                regulatory_exposure="MEDIUM", customer_impact="MEDIUM"),
     )
-
     assert result.decision == "PRIORITIZE"
