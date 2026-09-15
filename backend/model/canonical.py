@@ -834,17 +834,28 @@ def build_canonical_scan(
 
     business_contexts: List[BusinessContext] = []
 
-    raw_business_context = (
-        business_context
-        or scan_results.get(
-            "business_context"
-        )
-    )
+    raw_business_contexts = []
 
-    if raw_business_context:
-        context_id = stable_id(
-            "business_context",
-            application.application_id,
+    if business_context:
+        raw_business_contexts = [business_context]
+    elif scan_results.get("business_contexts"):
+        raw_business_contexts = list(
+            scan_results.get("business_contexts", [])
+        )
+    elif scan_results.get("business_context"):
+        raw_business_contexts = [
+            scan_results.get("business_context")
+        ]
+
+    for raw_business_context in raw_business_contexts:
+        context_id = str(
+            raw_business_context.get(
+                "context_id"
+            )
+            or stable_id(
+                "business_context",
+                application.application_id,
+            )
         )
 
         business_contexts.append(

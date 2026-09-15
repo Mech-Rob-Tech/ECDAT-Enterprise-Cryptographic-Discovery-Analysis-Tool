@@ -1,0 +1,20 @@
+{
+  "business_contexts": [
+    {
+      "context_id": "business:payment",
+      "application_id": "application:intelligence-repository",
+      "business_unit": "Payments",
+      "owner": "Payments Engineering",
+      "service": "Payment Processing",
+      "data_classification": "CONFIDENTIAL",
+      "data_lifetime_years": 10,
+      "operational_criticality": "CRITICAL",
+      "financial_impact": "HIGH",
+      "regulatory_exposure": "HIGH",
+      "customer_impact": "HIGH",
+      "risk_appetite": "LOW",
+      "source": "declared",
+      "confidence": "high"
+    }
+  ]
+}

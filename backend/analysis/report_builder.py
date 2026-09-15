@@ -1,9 +1,14 @@
 from typing import Any, Dict, Optional
 
 from model.canonical import build_canonical_scan
+from analysis.decision_engine import (
+    build_intelligence_snapshot,
+    snapshot_to_dict,
+)
 from analysis.risk_landscape import build_risk_landscape
 
 from knowledge.service import KnowledgeService
+
 
 def build_artifact_record(
     artifact: Dict[str, Any],
@@ -21,12 +26,59 @@ def build_artifact_record(
     return record
 
 
+def _business_context_for_artifact(
+    artifact: Any,
+    business_contexts: list[Any],
+) -> Optional[Any]:
+    """Resolve the canonical business context for one artifact."""
+    application_id = getattr(artifact, "application_id", None)
+
+    if not application_id:
+        return None
+
+    for context in business_contexts:
+        if getattr(context, "application_id", None) == application_id:
+            return context
+
+    return None
+
+
+def _dependency_ids_for_artifact(
+    artifact: Any,
+    dependencies: list[Any],
+) -> list[str]:
+    """Return dependency observations directly attached to an artifact."""
+    node_ids = {
+        value
+        for value in (
+            getattr(artifact, "artifact_id", None),
+            getattr(artifact, "component_id", None),
+            getattr(artifact, "application_id", None),
+        )
+        if value
+    }
+
+    return [
+        str(dependency.dependency_id)
+        for dependency in dependencies
+        if (
+            getattr(dependency, "source_node_id", None) in node_ids
+            or getattr(dependency, "target_node_id", None) in node_ids
+        )
+    ]
+
+
 def build_report(
     scan_results: Dict[str, Any],
     mosca_inputs: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Build the canonical ECDAT report while preserving legacy fields.
+
+    The report is also the integration boundary for the v0.8 decision
+    layer. Decision records and action vectors are derived only from
+    canonical artifacts, business context, dependencies, and migration
+    options already present in the scan.
     """
     knowledge_service = KnowledgeService()
 
@@ -40,6 +92,30 @@ def build_report(
         artifacts=canonical_scan.artifacts,
         business_contexts=canonical_scan.business_contexts,
     )
+
+    intelligence_decisions = []
+    intelligence_actions = []
+
+    for artifact in canonical_scan.artifacts:
+        business_context = _business_context_for_artifact(
+            artifact,
+            canonical_scan.business_contexts,
+        )
+        dependency_ids = _dependency_ids_for_artifact(
+            artifact,
+            canonical_scan.dependencies,
+        )
+
+        snapshot = build_intelligence_snapshot(
+            artifact=artifact,
+            business_context=business_context,
+            migration_options=canonical_scan.migration_options,
+            dependency_ids=dependency_ids,
+        )
+        serialized = snapshot_to_dict(snapshot)
+        intelligence_decisions.append(serialized["decision"])
+        intelligence_actions.append(serialized["action"])
+
     canonical_artifacts = []
 
     for artifact in canonical_scan.artifacts:
@@ -276,10 +352,11 @@ def build_report(
         )
 
     return {
-        # Knowledge context used for this analytical result.
         "knowledge_snapshot": knowledge_snapshot,
-
-        # Canonical analytical model
+        "intelligence": {
+            "decisions": intelligence_decisions,
+            "actions": intelligence_actions,
+        },
         "metadata": {
             "target": canonical_scan.metadata.target,
             "generated_at": canonical_scan.metadata.generated_at,
@@ -332,8 +409,6 @@ def build_report(
         "verification": verification,
         "canonical_artifacts": canonical_artifacts,
         "risk_landscape": risk_landscape,
-
-        # Legacy compatibility
         "target": scan_results.get("target"),
         "generated_at": scan_results.get("generated_at"),
         "prototype_scope": scan_results.get(
