@@ -70,10 +70,23 @@ def build_mosca_inputs(
         "data_lifetime": data_lifetime,
         "migration_time": migration_time,
         "quantum_horizon": quantum_horizon,
-        "business_criticality": businasync def scan(request: Request):
+        "business_criticality": business_criticality,
+    }
+
+
+async def health(request: Request):
+    return JSONResponse(
+        {
+            "status": "ok",
+            "service": "ECDAT",
+        }
+    )
+
+
+async def scan(request: Request):
     try:
         content_type = request.headers.get("content-type", "")
-        
+
         if content_type.startswith("multipart/form-data"):
             form = await request.form()
             source_type = str(form.get("source_type", "")).strip().lower()
@@ -89,7 +102,8 @@ def build_mosca_inputs(
 
             elif source_type == "folder":
                 uploads = [
-                    value for key, value in form.multi_items()
+                    value
+                    for key, value in form.multi_items()
                     if key == "files" and isinstance(value, UploadFile)
                 ]
                 relative_paths = parse_relative_paths(
@@ -108,11 +122,17 @@ def build_mosca_inputs(
 
         else:
             body = await request.json()
-            source_type = str(body.get("source_type", "path")).strip().lower()
+            source_type = str(
+                body.get("source_type", "path")
+            ).strip().lower()
 
             if source_type == "github":
-                repository_url = str(body.get("repository_url", "")).strip()
-                ref = str(body.get("ref", "")).strip() or None
+                repository_url = str(
+                    body.get("repository_url", "")
+                ).strip()
+                ref = str(
+                    body.get("ref", "")
+                ).strip() or None
 
                 if not repository_url:
                     return JSONResponse(
@@ -161,7 +181,9 @@ def build_mosca_inputs(
                         status_code=400,
                     )
 
-                scan_results = scan_repository(repository_path)
+                scan_results = scan_repository(
+                    repository_path
+                )
 
         mosca_inputs = build_mosca_inputs()
 
