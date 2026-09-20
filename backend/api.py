@@ -45,6 +45,14 @@ from storage.verification_history import (
     save_verification,
 )
 
+from ingestion.repository_source import (
+    RepositorySourceError,
+    parse_relative_paths,
+    scan_github_repository,
+    scan_uploaded_files,
+    scan_uploaded_zip,
+)
+
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -61,72 +69,98 @@ def build_mosca_inputs(
         "data_lifetime": data_lifetime,
         "migration_time": migration_time,
         "quantum_horizon": quantum_horizon,
-        "business_criticality": business_criticality,
-    }
-
-
-async def health(request: Request):
-    return JSONResponse(
-        {
-            "status": "ok",
-            "service": "ECDAT",
-        }
-    )
-
-
-async def scan(request: Request):
+        "business_criticality": businasync def scan(request: Request):
     try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse(
-            {
-                "error": "Request body must be valid JSON."
-            },
-            status_code=400,
-        )
+        content_type = request.headers.get("content-type", "")
+        
+        if content_type.startswith("multipart/form-data"):
+            form = await request.form()
+            source_type = str(form.get("source_type", "")).strip().lower()
 
-    repository = body.get("repository")
+            if source_type == "zip":
+                upload = form.get("file")
+                if not isinstance(upload, UploadFile):
+                    return JSONResponse(
+                        {"error": "A repository ZIP file is required."},
+                        status_code=400,
+                    )
+                scan_results = await scan_uploaded_zip(upload)
 
-    if not repository:
-        return JSONResponse(
-            {
-                "error": "Repository path is required."
-            },
-            status_code=400,
-        )
-
-    repository_path = (
-        Path(repository)
-        .expanduser()
-        .resolve()
-    )
-
-    if not repository_path.exists():
-        return JSONResponse(
-            {
-                "error": (
-                    "Repository does not exist: "
-                    f"{repository_path}"
+            elif source_type == "folder":
+                uploads = [
+                    value for key, value in form.multi_items()
+                    if key == "files" and isinstance(value, UploadFile)
+                ]
+                relative_paths = parse_relative_paths(
+                    str(form.get("paths", "[]"))
                 )
-            },
-            status_code=404,
-        )
-
-    if not repository_path.is_dir():
-        return JSONResponse(
-            {
-                "error": (
-                    "Repository path must be "
-                    "a directory."
+                scan_results = await scan_uploaded_files(
+                    uploads,
+                    relative_paths,
                 )
-            },
-            status_code=400,
-        )
 
-    try:
-        scan_results = scan_repository(
-            repository_path
-        )
+            else:
+                return JSONResponse(
+                    {"error": "Unsupported repository source."},
+                    status_code=400,
+                )
+
+        else:
+            body = await request.json()
+            source_type = str(body.get("source_type", "path")).strip().lower()
+
+            if source_type == "github":
+                repository_url = str(body.get("repository_url", "")).strip()
+                ref = str(body.get("ref", "")).strip() or None
+
+                if not repository_url:
+                    return JSONResponse(
+                        {"error": "GitHub repository URL is required."},
+                        status_code=400,
+                    )
+
+                scan_results = scan_github_repository(
+                    repository_url,
+                    ref=ref,
+                )
+            else:
+                repository = body.get("repository")
+
+                if not repository:
+                    return JSONResponse(
+                        {"error": "Repository path is required."},
+                        status_code=400,
+                    )
+
+                repository_path = (
+                    Path(repository)
+                    .expanduser()
+                    .resolve()
+                )
+
+                if not repository_path.exists():
+                    return JSONResponse(
+                        {
+                            "error": (
+                                "Repository does not exist: "
+                                f"{repository_path}"
+                            )
+                        },
+                        status_code=404,
+                    )
+
+                if not repository_path.is_dir():
+                    return JSONResponse(
+                        {
+                            "error": (
+                                "Repository path must be "
+                                "a directory."
+                            )
+                        },
+                        status_code=400,
+                    )
+
+                scan_results = scan_repository(repository_path)
 
         mosca_inputs = build_mosca_inputs()
 
@@ -146,7 +180,7 @@ async def scan(request: Request):
                 "generated_at": scan_state.generated_at,
                 "target": scan_state.target,
                 "artifact_ids": scan_state.artifact_ids,
-   	        "canonical_artifacts": scan_state.canonical_artifacts,
+                "canonical_artifacts": scan_state.canonical_artifacts,
                 "evidence": scan_state.evidence,
                 "business_contexts": scan_state.business_contexts,
                 "relationships": scan_state.relationships,
@@ -157,8 +191,15 @@ async def scan(request: Request):
             }
         )
 
+        return JSONResponse(report)
+
+    except RepositorySourceError as exc:
         return JSONResponse(
-            report
+            {
+                "error": "Repository source rejected.",
+                "detail": str(exc),
+            },
+            status_code=400,
         )
     except Exception as exc:
         return JSONResponse(
