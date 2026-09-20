@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Noto_Serif, Space_Grotesk } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -38,6 +39,7 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${notoSerif.variable} ${jetBrainsMono.variable}`}
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );
