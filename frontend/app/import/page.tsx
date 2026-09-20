@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useEffect,
 } from "react";
 import { useRouter } from "next/navigation";
 
@@ -72,6 +73,13 @@ export default function ImportPage() {
 
   const folderInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const input = folderInputRef.current;
+    if (!input) return;
+    input.setAttribute("webkitdirectory", "");
+    input.setAttribute("directory", "");
+  }, []);
 
   const selectedBytes = useMemo(() => {
     if (sourceType === "zip") {
