@@ -328,8 +328,13 @@ export default function ReportsPage() {
     setExportError(null);
 
     try {
+      const apiBase =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000/api"
+          : "/api";
+
       const response = await fetch(
-        `http://localhost:8000/export/${format}`,
+        `${apiBase}/export/${format}`,
         {
           method: "POST",
           headers: {
