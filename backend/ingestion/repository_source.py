@@ -143,7 +143,7 @@ def _download_github_archive(repository_url: str, ref: str | None, root: Path) -
             archive_url,
             headers={
                 "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2026-03-10",
+                "X-GitHub-Api-Version": "2022-11-28",
             },
             timeout=20,
             stream=True,
