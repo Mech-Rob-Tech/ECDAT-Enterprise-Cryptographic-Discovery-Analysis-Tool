@@ -174,23 +174,28 @@ def build_mosca_inputs(
             report
         )
 
-        save_scan_state(
-            {
-                "scan_id": scan_state.scan_id,
-                "application_ids": scan_state.application_ids,
-                "generated_at": scan_state.generated_at,
-                "target": scan_state.target,
-                "artifact_ids": scan_state.artifact_ids,
-                "canonical_artifacts": scan_state.canonical_artifacts,
-                "evidence": scan_state.evidence,
-                "business_contexts": scan_state.business_contexts,
-                "relationships": scan_state.relationships,
-                "dependencies": scan_state.dependencies,
-                "risk_landscape": scan_state.risk_landscape,
-                "summary": scan_state.summary,
-                "metadata": scan_state.metadata,
-            }
-        )
+        try:
+            save_scan_state(
+                {
+                    "scan_id": scan_state.scan_id,
+                    "application_ids": scan_state.application_ids,
+                    "generated_at": scan_state.generated_at,
+                    "target": scan_state.target,
+                    "artifact_ids": scan_state.artifact_ids,
+                    "canonical_artifacts": scan_state.canonical_artifacts,
+                    "evidence": scan_state.evidence,
+                    "business_contexts": scan_state.business_contexts,
+                    "relationships": scan_state.relationships,
+                    "dependencies": scan_state.dependencies,
+                    "risk_landscape": scan_state.risk_landscape,
+                    "summary": scan_state.summary,
+                    "metadata": scan_state.metadata,
+                }
+            )
+        except OSError:
+            # Vercel deployments do not provide durable local storage.
+            # The scan response remains usable by the browser.
+            pass
 
         return JSONResponse(report)
 
