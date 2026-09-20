@@ -13,6 +13,7 @@ from scanner.crypto_scanner import scan_repository
 
 
 MAX_UPLOAD_BYTES = 4_000_000
+MAX_GITHUB_ARCHIVE_BYTES = 50_000_000
 MAX_ARCHIVE_FILES = 10_000
 MAX_EXTRACTED_BYTES = 50_000_000
 GITHUB_HOSTS = {"github.com", "www.github.com"}
@@ -155,9 +156,9 @@ def _download_github_archive(repository_url: str, ref: str | None, root: Path) -
             if not chunk:
                 continue
             data.extend(chunk)
-            if len(data) > MAX_UPLOAD_BYTES:
+            if len(data) > MAX_GITHUB_ARCHIVE_BYTES:
                 raise RepositorySourceError(
-                    "The GitHub repository archive exceeds the 4 MB serverless limit."
+                    "The GitHub repository archive exceeds the 50 MB analysis limit."
                 )
     except RepositorySourceError:
         raise
