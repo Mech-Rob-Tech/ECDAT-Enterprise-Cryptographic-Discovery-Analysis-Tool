@@ -128,16 +128,24 @@ export default function ImportPage() {
     setState("ready");
   };
 
-  const handleZip = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
+  const handleZipFile = (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      setErrorMessage("Choose a ZIP repository archive.");
+      setState("error");
+      return;
+    }
 
     setZipFile(file);
+    setSelectedFiles([]);
     setSelectedFiles([]);
     setFileName(file.name);
     setErrorMessage("");
     setState("ready");
+  };
+
+  const handleZip = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) handleZipFile(file);
   };
 
   const handleJsonResult = (event: ChangeEvent<HTMLInputElement>) => {
@@ -396,6 +404,7 @@ export default function ImportPage() {
                   fileName={fileName}
                   size={selectedSize}
                   onChoose={() => zipInputRef.current?.click()}
+                  onDrop={handleZipFile}
                 />
               )}
 
@@ -696,12 +705,14 @@ function ZipSource({
   fileName,
   size,
   onChoose,
+  onDrop,
 }: {
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: RefObject<HTMLInputElement | null>;
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   fileName: string;
   size: string;
   onChoose: () => void;
+  onDrop: (file: File) => void;
 }) {
   return (
     <div>
@@ -717,6 +728,12 @@ function ZipSource({
         role="button"
         tabIndex={0}
         onClick={onChoose}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          const file = event.dataTransfer.files?.[0];
+          if (file) onDrop(file);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
@@ -734,7 +751,7 @@ function ZipSource({
         </p>
 
         <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-          Drag-and-drop is supported by the browser file picker.
+          Drop a ZIP here, or choose one from your device.
         </p>
 
         <span className="mt-5 inline-flex rounded-md border border-[var(--border)] px-4 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--primary)]">
