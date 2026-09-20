@@ -81,8 +81,13 @@ export default function ImportPage() {
     setScanResult(null);
 
     try {
+      const apiBase =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000/api"
+          : "/api";
+
       const response = await fetch(
-        "http://localhost:8000/scan",
+        `${apiBase}/scan`,
         {
           method: "POST",
           headers: {
