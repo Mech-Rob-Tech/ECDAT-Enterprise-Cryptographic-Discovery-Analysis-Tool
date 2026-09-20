@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import {
   ChangeEvent,
   useMemo,
@@ -630,7 +631,7 @@ function FolderSource({
   size,
   onChoose,
 }: {
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: RefObject<HTMLInputElement | null>;
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   fileName: string;
   fileCount: number;
