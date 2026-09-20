@@ -137,7 +137,6 @@ export default function ImportPage() {
 
     setZipFile(file);
     setSelectedFiles([]);
-    setSelectedFiles([]);
     setFileName(file.name);
     setErrorMessage("");
     setState("ready");
