@@ -178,7 +178,7 @@ turtlesim==1.8.4
 type-description-interfaces==2.0.4
 typing_extensions==4.16.0
 unique-identifier-msgs==2.5.1
-urllib3==2.7.0
+urllib3==2.8.0
 uvicorn==0.52.4
 vision-msgs==4.1.1
 visualization-msgs==5.3.8
