@@ -33,6 +33,9 @@ ECDAT is intended to answer questions such as:
 
 The v0.5.0 baseline introduces a structured cryptographic knowledge system that sits between discovery and analysis.
 
+# Deployed version
+
+
 Current capabilities include:
 
 - Cryptographic source-code discovery
